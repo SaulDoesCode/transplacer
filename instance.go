@@ -283,8 +283,6 @@ func MakeFromConf(location string) *Instance {
 		}
 	}
 
-	fmt.Println(string(raw))
-
 	if err != nil {
 		fmt.Println("MakeFromConf err: ", err)
 		panic("bad config file, it cannot be parsed. make sure it's valid json or toml")
