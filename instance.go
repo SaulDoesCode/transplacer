@@ -274,16 +274,17 @@ func MakeFromConf(location string) *Instance {
 	if strings.Contains(location, ".json") {
 		err = jsoniter.Unmarshal(raw, conf)
 		if err == nil {
-			jsoniter.Unmarshal(raw, rawconf)
+			jsoniter.Unmarshal(raw, &rawconf)
 		}
 	} else if strings.Contains(location, ".toml") {
 		err = toml.Unmarshal(raw, conf)
 		if err == nil {
-			toml.Unmarshal(raw, rawconf)
+			toml.Unmarshal(raw, &rawconf)
 		}
 	}
 
 	if err != nil {
+		fmt.Println("MakeFromConf err: ", err)
 		panic("bad config file, it cannot be parsed. make sure it's valid json or toml")
 	}
 
