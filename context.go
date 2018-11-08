@@ -226,6 +226,10 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 			c.SetHeaderValues(name, values)
 		}
 
+		if c.Status == 0 {
+			c.Status = 200
+		}
+
 		c.W.WriteHeader(c.Status)
 		if c.R.Method != "HEAD" {
 			io.CopyN(c.W, reader, c.ContentLength)
