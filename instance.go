@@ -135,6 +135,7 @@ func Make(conf *Config) *Instance {
 // ServeHTTP implements the `http.Handler`.
 func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	ctx := &Ctx{
+		Status:        200,
 		ContentLength: r.ContentLength,
 		Path:          r.RequestURI,
 		R:             r,
