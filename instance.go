@@ -129,19 +129,6 @@ func Make(conf *Config) *Instance {
 		RawConfig: conf.Raw,
 	}
 
-	if conf.DevMode {
-		if conf.DevAddress != "" {
-			in.Server.Addr = conf.DevAddress
-		}
-		if conf.DevSecondaryServerAddress != "" {
-			in.SecondaryServer.Addr = conf.DevSecondaryServerAddress
-		}
-	}
-
-	if in.SecondaryServer.Addr == "" {
-		in.SecondaryServer = nil
-	}
-
 	return in
 }
 
@@ -206,7 +193,22 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 // Run let's the mak instance's purpose actuate, until it dies or is otherwise stopped
 func (in *Instance) Run() error {
 	cf := in.Config
-	if (!cf.DevMode && cf.AutoCert) || cf.DevAutoCert {
+
+	if cf.DevMode {
+		cf.AutoCert = cf.DevAutoCert
+		if cf.DevAddress != "" {
+			in.Server.Addr = cf.DevAddress
+		}
+		if cf.DevSecondaryServerAddress != "" {
+			in.SecondaryServer.Addr = cf.DevSecondaryServerAddress
+		}
+	}
+
+	if in.SecondaryServer.Addr == "" {
+		in.SecondaryServer = nil
+	}
+
+	if cf.AutoCert {
 		in.AutoCert = &autocert.Manager{
 			Prompt: autocert.AcceptTOS,
 			Cache:  autocert.DirCache(cf.Cache),
