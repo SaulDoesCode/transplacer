@@ -269,7 +269,7 @@ func MakeFromConf(location string) *Instance {
 	}
 
 	var conf Config
-	var rawconf map[string]interface{}
+	rawconf := map[string]interface{}{}
 
 	if strings.Contains(location, ".json") {
 		err = jsoniter.Unmarshal(raw, &conf)
