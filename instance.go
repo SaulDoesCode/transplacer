@@ -62,10 +62,10 @@ type Config struct {
 
 	DevMode bool `json:"devmode,omitempty" toml:"devmode,omitempty"`
 
-	Address                string `json:"server_address" toml:"server_address"`
+	Address                string `json:"address" toml:"address"`
 	SecondaryServerAddress string `json:"secondary_server_address" toml:"secondary_server_address"`
 
-	DevAddress                string `json:"dev_server_address,omitempty" toml:"dev_server_address,omitempty"`
+	DevAddress                string `json:"dev_address,omitempty" toml:"dev_address,omitempty"`
 	DevSecondaryServerAddress string `json:"dev_secondary_server_address,omitempty" toml:"dev_secondary_server_address,omitempty"`
 
 	AutoPush bool `json:"autopush,omitempty" toml:"autopush,omitempty"`
@@ -74,8 +74,8 @@ type Config struct {
 	DevAutoCert bool     `json:"dev_autocert,omitempty" toml:"dev_autocert,omitempty"`
 	Whitelist   []string `json:"whitelist,omitempty" toml:"whitelist,omitempty"`
 
-	TLSKey  string `json:"tlskey,omitempty" toml:"tlskey,omitempty"`
-	TLSCert string `json:"tlscert,omitempty" toml:"tlscert,omitempty"`
+	TLSKey  string `json:"tls_key,omitempty" toml:"tls_key,omitempty"`
+	TLSCert string `json:"tls_cert,omitempty" toml:"tls_cert,omitempty"`
 
 	Assets string `json:"assets,omitempty" toml:"assets,omitempty"`
 
