@@ -119,14 +119,16 @@ func Make(conf *Config) *Instance {
 		Config: conf,
 		Router: MakeRouter(),
 
-		Server:          &http.Server{},
-		SecondaryServer: &http.Server{},
+		Server: &http.Server{
+			Addr: conf.Address,
+		},
+		SecondaryServer: &http.Server{
+			Addr: conf.SecondaryServerAddress,
+		},
 
 		RawConfig: conf.Raw,
 	}
 
-	in.Server.Addr = conf.Address
-	in.SecondaryServer.Addr = conf.SecondaryServerAddress
 	if conf.DevMode {
 		if conf.DevAddress != "" {
 			in.Server.Addr = conf.DevAddress
@@ -139,42 +141,6 @@ func Make(conf *Config) *Instance {
 	if in.SecondaryServer.Addr == "" {
 		in.SecondaryServer = nil
 	}
-
-	if conf.AutoCert && !(conf.DevMode && !conf.DevAutoCert) {
-		in.AutoCert = &autocert.Manager{
-			Prompt: autocert.AcceptTOS,
-			Cache:  autocert.DirCache(conf.Cache),
-			HostPolicy: func(_ context.Context, h string) error {
-				if len(conf.Whitelist) == 0 || stringsContainsCI(conf.Whitelist, h) {
-					return nil
-				}
-
-				return fmt.Errorf("acme/autocert: host %q not configured in config.Whitelist", h)
-			},
-			Email: conf.MaintainerEmail,
-		}
-
-		in.Server.TLSConfig = in.AutoCert.TLSConfig()
-
-		conf.TLSCert = ""
-		conf.TLSKey = ""
-
-		in.SecondaryServer.Handler = in.AutoCert.HTTPHandler(in.SecondaryServerHandler)
-	} else {
-		if in.SecondaryServerHandler == nil {
-			in.SecondaryServer.Handler = http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-				target := "https://" + req.Host + req.URL.Path
-				if len(req.URL.RawQuery) > 0 {
-					target += "?" + req.URL.RawQuery
-				}
-				http.Redirect(res, req, target, 301)
-			})
-		} else {
-			in.SecondaryServer.Handler = in.SecondaryServerHandler
-		}
-	}
-
-	in.Server.Handler = in
 
 	return in
 }
@@ -239,10 +205,47 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 // Run let's the mak instance's purpose actuate, until it dies or is otherwise stopped
 func (in *Instance) Run() error {
-	if in.AutoCert != nil || in.Config.TLSCert != "" {
+	cf := in.Config
+	if (!cf.DevMode && cf.AutoCert) || cf.DevAutoCert {
+		in.AutoCert = &autocert.Manager{
+			Prompt: autocert.AcceptTOS,
+			Cache:  autocert.DirCache(cf.Cache),
+			HostPolicy: func(_ context.Context, h string) error {
+				if len(cf.Whitelist) == 0 || stringsContainsCI(cf.Whitelist, h) {
+					return nil
+				}
+
+				return fmt.Errorf("acme/autocert: host %q not configured in config.Whitelist", h)
+			},
+			Email: cf.MaintainerEmail,
+		}
+
+		in.Server.TLSConfig = in.AutoCert.TLSConfig()
+
+		cf.TLSCert = ""
+		cf.TLSKey = ""
+
+		in.SecondaryServer.Handler = in.AutoCert.HTTPHandler(in.SecondaryServerHandler)
+	} else {
+		if in.SecondaryServerHandler == nil {
+			in.SecondaryServer.Handler = http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+				target := "https://" + req.Host + req.URL.Path
+				if len(req.URL.RawQuery) > 0 {
+					target += "?" + req.URL.RawQuery
+				}
+				http.Redirect(res, req, target, 301)
+			})
+		} else {
+			in.SecondaryServer.Handler = in.SecondaryServerHandler
+		}
+	}
+
+	in.Server.Handler = in
+
+	if in.AutoCert != nil || cf.TLSCert != "" {
 		go in.SecondaryServer.ListenAndServe()
 	}
-	err := in.Server.ListenAndServeTLS(in.Config.TLSCert, in.Config.TLSKey)
+	err := in.Server.ListenAndServeTLS(cf.TLSCert, cf.TLSKey)
 	return err
 }
 
