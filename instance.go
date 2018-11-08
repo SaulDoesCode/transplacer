@@ -183,7 +183,8 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		R:             r,
 		W:             rw,
 
-		parseParamsOnce: &sync.Once{},
+		parseParamsOnce:        &sync.Once{},
+		parseClientAddressOnce: &sync.Once{},
 	}
 	ctx.Body = &responseBody{ctx: ctx}
 
