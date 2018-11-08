@@ -139,7 +139,7 @@ func (c *Ctx) SetRawHeader(name string, values []string) {
 }
 
 // Headers gets the headers
-func (c *Ctx) Headers(name string) *http.Header {
+func (c *Ctx) Headers() *http.Header {
 	return &c.R.Header
 }
 
