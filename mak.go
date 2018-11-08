@@ -15,6 +15,7 @@ type Ctx struct {
 	ContentLength int64
 	Written       bool
 	Status        int
+	Path          string
 
 	instance        *Instance
 	params          []*RequestParam

@@ -179,6 +179,7 @@ func Make(conf *Config) *Instance {
 func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	ctx := &Ctx{
 		ContentLength: r.ContentLength,
+		Path:          r.RequestURI,
 		R:             r,
 		W:             rw,
 
