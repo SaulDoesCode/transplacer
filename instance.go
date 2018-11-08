@@ -48,10 +48,17 @@ func (in *Instance) AddHTTPWare(wares ...func(http.Handler) http.Handler) {
 	}
 }
 
+// AddPreHTTPWare adds plain http middleware(s) to the instance
+func (in *Instance) AddPreHTTPWare(wares ...func(http.Handler) http.Handler) {
+	for _, httpware := range wares {
+		in.PreMiddleware = append(in.PreMiddleware, WrapHTTPMiddleware(httpware))
+	}
+}
+
 // AddPreWare adds middleware(s) to the instance,
 // wares that run before all the others
 func (in *Instance) AddPreWare(wares ...Middleware) {
-	in.Middleware = append(in.Middleware, wares...)
+	in.PreMiddleware = append(in.PreMiddleware, wares...)
 }
 
 // Config holds all the information necessary to fire up a mak instance
