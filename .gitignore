@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Vim
+*.swo
+*.swp
+
+*.exe
+
+./private
+private
+*.pem
+*.key
+./cache
+cache
+./private/cache
+.cache
+node_modules
+
