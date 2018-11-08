@@ -39,6 +39,13 @@ func (in *Instance) AddWare(wares ...Middleware) {
 	in.Middleware = append(in.Middleware, wares...)
 }
 
+// AddHTTPWare adds plain http middleware(s) to the instance
+func (in *Instance) AddHTTPWare(wares ...func(http.Handler) http.Handler) {
+	for _, httpware := range wares {
+		in.Middleware = append(in.Middleware, WrapHTTPMiddleware(httpware))
+	}
+}
+
 // AddPreWare adds middleware(s) to the instance,
 // wares that run before all the others
 func (in *Instance) AddPreWare(wares ...Middleware) {
