@@ -178,6 +178,26 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		if in.ErrorHandler != nil {
 			in.ErrorHandler(ctx, err)
 		}
+
+		if ctx.Written {
+			return
+		}
+
+		if ctx.Status < 400 {
+			ctx.Status = 500
+		}
+
+		m := err.Error()
+		if ctx.Status == 500 && !in.Config.DevMode {
+			m = "internal server error"
+		}
+
+		if ctx.R.Method == "GET" || ctx.R.Method == "HEAD" {
+			ctx.DelHeader("etag")
+			ctx.DelHeader("last-modified")
+		}
+
+		ctx.WriteString(m)
 	}
 
 	// Close opened request param file values
