@@ -47,32 +47,32 @@ func (in *Instance) AddPreWare(wares ...Middleware) {
 
 // Config holds all the information necessary to fire up a mak instance
 type Config struct {
-	AppName         string `json:"appname,omitempty"`
-	Domain          string `json:"domain,omitempty"`
-	MaintainerEmail string `json:"maintainer_email,omitempty"`
+	AppName         string `json:"appname,omitempty" toml:"appname,omitempty"`
+	Domain          string `json:"domain,omitempty" toml:"domain,omitempty"`
+	MaintainerEmail string `json:"maintainer_email,omitempty" toml:"maintainer_email,omitempty"`
 
-	DevMode bool `json:"devmode,omitempty"`
+	DevMode bool `json:"devmode,omitempty" toml:"devmode,omitempty"`
 
-	Address                string `json:"server_address"`
-	SecondaryServerAddress string `json:"secondary_server_address"`
+	Address                string `json:"server_address" toml:"server_address"`
+	SecondaryServerAddress string `json:"secondary_server_address" toml:"secondary_server_address"`
 
-	DevAddress                string `json:"dev_server_address,omitempty"`
-	DevSecondaryServerAddress string `json:"dev_secondary_server_address,omitempty"`
+	DevAddress                string `json:"dev_server_address,omitempty" toml:"dev_server_address,omitempty"`
+	DevSecondaryServerAddress string `json:"dev_secondary_server_address,omitempty" toml:"dev_secondary_server_address,omitempty"`
 
-	AutoPush bool `json:"autopush,omitempty"`
+	AutoPush bool `json:"autopush,omitempty" toml:"autopush,omitempty"`
 
-	AutoCert    bool     `json:"autocert,omitempty"`
-	DevAutoCert bool     `json:"dev_autocert,omitempty"`
-	Whitelist   []string `json:"whitelist,omitempty"`
+	AutoCert    bool     `json:"autocert,omitempty" toml:"autocert,omitempty"`
+	DevAutoCert bool     `json:"dev_autocert,omitempty" toml:"dev_autocert,omitempty"`
+	Whitelist   []string `json:"whitelist,omitempty" toml:"whitelist,omitempty"`
 
-	TLSKey  string `json:"tlskey,omitempty"`
-	TLSCert string `json:"tlscert,omitempty"`
+	TLSKey  string `json:"tlskey,omitempty" toml:"tlskey,omitempty"`
+	TLSCert string `json:"tlscert,omitempty" toml:"tlscert,omitempty"`
 
-	Assets string `json:"assets,omitempty"`
+	Assets string `json:"assets,omitempty" toml:"assets,omitempty"`
 
-	Private string `json:"private,omitempty"`
+	Private string `json:"private,omitempty" toml:"private,omitempty"`
 
-	Cache string `json:"cache,omitempty"`
+	Cache string `json:"cache,omitempty" toml:"cache,omitempty"`
 }
 
 func digestConfig(config *Config) {
