@@ -89,6 +89,8 @@ type Config struct {
 	Private string `json:"private,omitempty" toml:"private,omitempty"`
 
 	Cache string `json:"cache,omitempty" toml:"cache,omitempty"`
+
+	Raw map[string]interface{} `json:"-" toml:"-"`
 }
 
 func digestConfig(config *Config) {
@@ -119,6 +121,8 @@ func Make(conf *Config) *Instance {
 
 		Server:          &http.Server{},
 		SecondaryServer: &http.Server{},
+
+		RawConfig: conf.Raw,
 	}
 
 	in.Server.Addr = conf.Address
@@ -288,6 +292,7 @@ func MakeFromConf(location string) *Instance {
 		panic("bad config file, it cannot be parsed. make sure it's valid json or toml")
 	}
 
+	conf.Raw = rawconf
 	return Make(&conf)
 }
 
