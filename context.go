@@ -139,8 +139,38 @@ func (c *Ctx) SetRawHeader(name string, values []string) {
 }
 
 // Headers gets the headers
-func (c *Ctx) Headers() *http.Header {
-	return &c.R.Header
+func (c *Ctx) Headers() http.Header {
+	return c.R.Header
+}
+
+// RemoteAddress returns the last network address that sent the r.
+func (c *Ctx) RemoteAddress() string {
+	return c.R.RemoteAddr
+}
+
+// ClientAddress returns the original network address that sent the r.
+func (c *Ctx) ClientAddress() string {
+	c.parseClientAddressOnce.Do(c.parseClientAddress)
+	return c.clientAddress
+}
+
+// parseClientAddress parses the original network address that sent the r into
+// the `r.clientAddress`.
+func (c *Ctx) parseClientAddress() {
+	c.clientAddress = c.RemoteAddress()
+	if f := c.Header("forwarded"); f != "" { // See RFC 7239
+		for _, p := range strings.Split(strings.Split(f, ",")[0], ";") {
+			p := strings.TrimSpace(p)
+			if strings.HasPrefix(p, "for=") {
+				c.clientAddress = strings.TrimSuffix(
+					strings.TrimPrefix(p[4:], "\"["), "]\"",
+				)
+				break
+			}
+		}
+	} else if xff := c.Header("x-forwarded-for"); xff != "" {
+		c.clientAddress = strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
 }
 
 // Write responds to the client with the content.
@@ -157,15 +187,11 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 		}
 
 		if c.R.TLS != nil && c.GetHeader("strict-transport-security") == "" {
-			c.SetHeader(
-				"strict-transport-security",
-				"max-age=31536000",
-			)
+			c.SetHeader("strict-transport-security", "max-age=31536000")
 		}
 
 		if reader != nil {
-			if c.Status >= 200 &&
-				c.Status < 300 &&
+			if c.Status >= 200 && c.Status < 300 &&
 				c.Header("accept-ranges") == "" {
 				c.SetHeader("accept-ranges", "bytes")
 			}
@@ -182,8 +208,7 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 		if c.ContentLength >= 0 &&
 			c.GetHeader("content-length") == "" &&
 			c.GetHeader("transfer-encoding") == "" &&
-			c.Status >= 200 &&
-			c.Status != 204 &&
+			c.Status >= 200 && c.Status != 204 &&
 			(c.Status >= 300 || c.R.Method != "CONNECT") {
 			c.SetContentType(strconv.FormatInt(c.ContentLength, 10))
 		}

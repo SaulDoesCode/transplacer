@@ -17,10 +17,12 @@ type Ctx struct {
 	Status        int
 	Path          string
 
-	instance        *Instance
-	params          []*RequestParam
-	parseParamsOnce *sync.Once
-	query           url.Values
+	instance               *Instance
+	clientAddress          string
+	parseClientAddressOnce *sync.Once
+	params                 []*RequestParam
+	parseParamsOnce        *sync.Once
+	query                  url.Values
 }
 
 // Handler defines a function to serve requests.
