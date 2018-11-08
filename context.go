@@ -210,7 +210,10 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 			c.GetHeader("transfer-encoding") == "" &&
 			c.Status >= 200 && c.Status != 204 &&
 			(c.Status >= 300 || c.R.Method != "CONNECT") {
-			c.SetContentType(strconv.FormatInt(c.ContentLength, 10))
+			c.SetHeader(
+				"content-length",
+				strconv.FormatInt(c.ContentLength, 10),
+			)
 		}
 
 		if cs := c.Cookies(); len(cs) > 0 {
@@ -716,6 +719,7 @@ func (c *Ctx) WriteFile(filename string) error {
 		}
 
 		c.SetHeader("etag", fmt.Sprintf(`"%x"`, et))
+		c.SetHeader("cache-control", "private, must-revalidate")
 	}
 
 	if c.GetHeader("last-modified") == "" {
