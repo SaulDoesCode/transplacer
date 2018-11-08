@@ -354,9 +354,7 @@ func (r *Router) Route(c *Ctx) Handler {
 				if p.Name == pn {
 					p.Values = append(
 						[]*RequestParamValue{
-							{
-								i: pv,
-							},
+							{i: pv, ctx: c},
 						},
 						p.Values...,
 					)
@@ -366,7 +364,7 @@ func (r *Router) Route(c *Ctx) Handler {
 
 			c.params = append(c.params, &RequestParam{
 				Name:   pn,
-				Values: []*RequestParamValue{{i: pv}},
+				Values: []*RequestParamValue{{i: pv, ctx: c}},
 			})
 		}
 
