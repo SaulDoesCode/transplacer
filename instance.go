@@ -268,16 +268,16 @@ func MakeFromConf(location string) *Instance {
 		panic("no config file to start a mak instance with")
 	}
 
-	var conf *Config
+	var conf Config
 	var rawconf map[string]interface{}
 
 	if strings.Contains(location, ".json") {
-		err = jsoniter.Unmarshal(raw, conf)
+		err = jsoniter.Unmarshal(raw, &conf)
 		if err == nil {
 			jsoniter.Unmarshal(raw, &rawconf)
 		}
 	} else if strings.Contains(location, ".toml") {
-		err = toml.Unmarshal(raw, conf)
+		err = toml.Unmarshal(raw, &conf)
 		if err == nil {
 			toml.Unmarshal(raw, &rawconf)
 		}
@@ -288,7 +288,7 @@ func MakeFromConf(location string) *Instance {
 		panic("bad config file, it cannot be parsed. make sure it's valid json or toml")
 	}
 
-	return Make(conf)
+	return Make(&conf)
 }
 
 // stringsContainsCI reports whether the lists contains a match regardless of its case.
