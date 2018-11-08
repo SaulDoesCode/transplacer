@@ -269,17 +269,17 @@ func MakeFromConf(location string) *Instance {
 	}
 
 	var conf Config
-	rawconf := map[string]interface{}{}
+	var rawconf map[string]interface{}
 
 	if strings.Contains(location, ".json") {
 		err = jsoniter.Unmarshal(raw, &conf)
 		if err == nil {
-			jsoniter.Unmarshal(raw, &rawconf)
+			err = jsoniter.Unmarshal(raw, &rawconf)
 		}
 	} else if strings.Contains(location, ".toml") {
 		err = toml.Unmarshal(raw, &conf)
 		if err == nil {
-			toml.Unmarshal(raw, &rawconf)
+			err = toml.Unmarshal(raw, &rawconf)
 		}
 	}
 
