@@ -31,7 +31,9 @@ type Instance struct {
 
 	AutoCert *autocert.Manager
 
-	ErrorHandler func(*Ctx, error)
+	ErrorHandler func(*Ctx, error) error
+
+	NotFoundHandler func(*Ctx) error
 }
 
 // AddWare adds middleware(s) to the instance
