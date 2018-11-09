@@ -740,9 +740,10 @@ func (c *Ctx) WriteFile(filename string) error {
 	if strings.Contains(filename, ".html") {
 		var raw []byte
 		_, err := content.Read(raw)
-		if err == nil {
-			return c.WriteHTML(string(raw))
+		if err != nil {
+			return err
 		}
+		return c.WriteHTML(string(raw))
 	}
 	return c.WriteContent(content)
 }
