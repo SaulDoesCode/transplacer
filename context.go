@@ -853,7 +853,7 @@ func (c *Ctx) Push(target string, headers http.Header) error {
 	}
 
 	if c.instance.Config.DevMode {
-		fmt.Println("http2 asset pushed: ", target)
+		fmt.Println("http2 assets pushed")
 	}
 
 	return p.Push(target, pos)
