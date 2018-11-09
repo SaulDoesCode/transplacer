@@ -106,7 +106,7 @@ func (a *AssetCache) Close() error {
 
 // Gen generates a new Asset
 func (a *AssetCache) Gen(name string) (*Asset, error) {
-	name = path.Clean(a.Dir + name)
+	name = prepPath(a.Dir, name)
 
 	fs, err := os.Stat(name)
 	if err != nil {
@@ -182,11 +182,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 
 // Get fetches an asset
 func (a *AssetCache) Get(name string) (*Asset, bool) {
-	name = path.Clean(a.Dir + name)
-
-	if hasLastSlash(name) {
-		name += "index.html"
-	}
+	name = prepPath(a.Dir, name)
 
 	raw, ok := a.Cache.GetStringKey(name)
 	if !ok {
@@ -265,4 +261,15 @@ func gzipBytes(content []byte, level int) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+func prepPath(host, file string) string {
+	p := host + file
+	if strings.Contains(file, host) {
+		p = file
+	}
+	if hasLastSlash(p) {
+		p += "index.html"
+	}
+	return path.Clean(p)
 }
