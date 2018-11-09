@@ -42,7 +42,8 @@ type Instance struct {
 
 	NotFoundHandler func(*Ctx) error
 
-	Cache fscache.Cache
+	Cache       fscache.Cache
+	AssetsCache fscache.Cache
 }
 
 // AddWare adds middleware(s) to the instance
@@ -91,6 +92,7 @@ type Config struct {
 	AutoCert    bool     `json:"autocert,omitempty" toml:"autocert,omitempty"`
 	DevAutoCert bool     `json:"dev_autocert,omitempty" toml:"dev_autocert,omitempty"`
 	Whitelist   []string `json:"whitelist,omitempty" toml:"whitelist,omitempty"`
+	Certs       string   `json:"certs,omitempty" toml:"certs,omitempty"`
 
 	TLSKey  string `json:"tls_key,omitempty" toml:"tls_key,omitempty"`
 	TLSCert string `json:"tls_cert,omitempty" toml:"tls_cert,omitempty"`
@@ -111,6 +113,10 @@ func digestConfig(config *Config) {
 
 	if config.Assets == "" {
 		config.Assets = "./assets"
+	}
+
+	if config.Certs == "" {
+		config.Certs = config.Private + "/certs"
 	}
 
 	if config.Cache == "" {
@@ -261,14 +267,38 @@ func (in *Instance) Run() error {
 			fmt.Println("fscache error, could not create a cache: ", err)
 			panic(err)
 		}
+		in.AssetsCache = cache
+
+		in.STATIC("/", cf.Assets, in.AssetWares...)
+	}
+
+	if cf.Cache != "" {
+		cachedir, err := filepath.Abs(cf.Cache)
+		if err != nil {
+			fmt.Println("cache dir error, cannot get absolute path: ", err)
+			panic("could not get an absolute path for the cache directory")
+		}
+		cf.Cache = cachedir
+
+		stat, err := os.Stat(cf.Cache)
+		if err != nil {
+			fmt.Println("cache dir err: ", err)
+			panic("something wrong with the Assets dir/path, best you check what's going on")
+		}
+		if !stat.IsDir() {
+			panic("the path of cache, leads to no folder sir, you best fix that now!")
+		}
+
+		cache, err := fscache.New(cf.Cache, 0444, time.Minute*30)
+		if err != nil {
+			fmt.Println("fscache error, could not create a cache: ", err)
+			panic(err)
+		}
 		in.Cache = cache
 
 		in.AddHTTPWare(func(h http.Handler) http.Handler {
 			return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				location := cf.Assets + req.URL.Path
-				if hasLastSlash(location) {
-					location += "index.html"
-				}
+				location := cf.Cache + req.URL.Path
 
 				r, w, err := cache.Get(location)
 				if err != nil {
@@ -293,7 +323,7 @@ func (in *Instance) Run() error {
 	if cf.AutoCert {
 		in.AutoCert = &autocert.Manager{
 			Prompt: autocert.AcceptTOS,
-			Cache:  autocert.DirCache(cf.Cache),
+			Cache:  autocert.DirCache(cf.Certs),
 			HostPolicy: func(_ context.Context, h string) error {
 				if len(cf.Whitelist) == 0 || stringsContainsCI(cf.Whitelist, h) {
 					return nil
