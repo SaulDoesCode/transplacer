@@ -25,6 +25,9 @@ type Ctx struct {
 	query                  url.Values
 }
 
+// Cookie is alias for http.Cookie
+type Cookie = http.Cookie
+
 // Handler defines a function to serve requests.
 type Handler func(c *Ctx) error
 

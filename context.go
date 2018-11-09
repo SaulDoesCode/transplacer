@@ -60,14 +60,14 @@ func (c *Ctx) Cookie(name string) string {
 }
 
 // SetCookie sets a new *http.Cookie on the response
-func (c *Ctx) SetCookie(name string, cookie *http.Cookie) {
+func (c *Ctx) SetCookie(name string, cookie *Cookie) {
 	cookie.Name = name
 	http.SetCookie(c.W, cookie)
 }
 
 // GetCookie returns an *http.Cookie matching a name and nil if
 // no such cookie exists
-func (c *Ctx) GetCookie(name string) *http.Cookie {
+func (c *Ctx) GetCookie(name string) *Cookie {
 	cookie, err := c.R.Cookie(name)
 	if err == nil && cookie != nil {
 		return cookie
@@ -76,7 +76,7 @@ func (c *Ctx) GetCookie(name string) *http.Cookie {
 }
 
 // Cookies returns a slice of cookies present in the request
-func (c *Ctx) Cookies() []*http.Cookie {
+func (c *Ctx) Cookies() []*Cookie {
 	return c.R.Cookies()
 }
 
