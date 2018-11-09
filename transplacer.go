@@ -232,6 +232,7 @@ func (as *Asset) Serve(c *Ctx) error {
 
 	if err == nil {
 		c.ContentLength += int64(n)
+		c.Written = true
 	}
 	return err
 }
