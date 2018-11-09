@@ -256,7 +256,7 @@ func (in *Instance) Run() error {
 			panic("the path of assets, leads to no folder sir, you best fix that now!")
 		}
 
-		cache, err := fscache.New(cf.Assets, 0775, time.Minute*30)
+		cache, err := fscache.New(cf.Assets, 0444, time.Minute*30)
 		if err != nil {
 			fmt.Println("fscache error, could not create a cache: ", err)
 			panic(err)
