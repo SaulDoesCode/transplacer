@@ -1,7 +1,6 @@
 package mak
 
 import (
-	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -11,7 +10,6 @@ import (
 type Ctx struct {
 	R             *http.Request
 	W             http.ResponseWriter
-	Body          io.Writer
 	ContentLength int64
 	Written       bool
 	Status        int

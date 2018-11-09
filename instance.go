@@ -150,7 +150,6 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		parseParamsOnce:        &sync.Once{},
 		parseClientAddressOnce: &sync.Once{},
 	}
-	ctx.Body = &responseBody{ctx: ctx}
 
 	// Chain Middleware
 
@@ -160,7 +159,7 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			if err := rh(c); err != nil {
 				return err
 			} else if !c.Written {
-				return c.Write(nil)
+				return c.WriteContent(nil)
 			}
 			return nil
 		}

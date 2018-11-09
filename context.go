@@ -176,8 +176,8 @@ func (c *Ctx) parseClientAddress() {
 	}
 }
 
-// Write responds to the client with the content.
-func (c *Ctx) Write(content io.ReadSeeker) error {
+// WriteContent responds to the client with the content.
+func (c *Ctx) WriteContent(content io.ReadSeeker) error {
 	if c.Written {
 		return nil
 	}
@@ -217,10 +217,12 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 				"content-length",
 				strconv.FormatInt(c.ContentLength, 10),
 			)
+		} else {
+			c.ContentLength = 0
 		}
 
 		c.W.WriteHeader(c.Status)
-		if c.R.Method != "HEAD" {
+		if c.R.Method != "HEAD" && reader != nil {
 			io.CopyN(c.W, reader, c.ContentLength)
 		}
 
@@ -546,7 +548,7 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 
 // WriteBlob responds to the client with the content b.
 func (c *Ctx) WriteBlob(b []byte) error {
-	return c.Write(bytes.NewReader(b))
+	return c.WriteContent(bytes.NewReader(b))
 }
 
 // WriteString responds to the client with the "text/plain" content s.
@@ -733,7 +735,7 @@ func (c *Ctx) WriteFile(filename string) error {
 		c.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
-	return c.Write(content)
+	return c.WriteContent(content)
 }
 
 // Redirect responds to the client with a redirection to the url.
@@ -772,7 +774,7 @@ func (c *Ctx) Redirect(url string) error {
 
 	c.SetHeader("location", url)
 	if c.ContentType() != "" {
-		return c.Write(nil)
+		return c.WriteContent(nil)
 	}
 
 	// RFC 7231 notes that a short HTML body is usually included in the
@@ -792,7 +794,7 @@ func (c *Ctx) Redirect(url string) error {
 		))
 	}
 
-	return c.Write(body)
+	return c.WriteContent(body)
 }
 
 // Push initiates an HTTP/2 server push. This constructs a synthetic request
@@ -894,25 +896,19 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// responseBody provides a convenient way to respond to the client with the
-// streaming content.
-type responseBody struct {
-	ctx *Ctx
-}
-
 // Write implements the `io.Writer`.
-func (rb *responseBody) Write(b []byte) (int, error) {
-	if !rb.ctx.Written {
-		rb.ctx.ContentLength = -1
-		if err := rb.ctx.Write(nil); err != nil {
+func (c *Ctx) Write(b []byte) (int, error) {
+	if !c.Written {
+		c.ContentLength = -1
+		if err := c.WriteContent(nil); err != nil {
 			return 0, err
 		}
 
-		rb.ctx.ContentLength = 0
+		c.ContentLength = 0
 	}
 
-	n, err := rb.ctx.W.Write(b)
-	rb.ctx.ContentLength += int64(n)
+	n, err := c.W.Write(b)
+	c.ContentLength += int64(n)
 
 	return n, err
 }
