@@ -2,6 +2,7 @@ module github.com/SaulDoesCode/mak
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/SaulDoesCode/fscache v0.9.0
 	github.com/golang/protobuf v1.2.0
 	github.com/json-iterator/go v1.1.5
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

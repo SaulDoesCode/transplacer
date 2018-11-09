@@ -21,6 +21,8 @@ type Ctx struct {
 	params                 []*RequestParam
 	parseParamsOnce        *sync.Once
 	query                  url.Values
+
+	http.ResponseWriter
 }
 
 // Cookie is alias for http.Cookie

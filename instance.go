@@ -3,15 +3,18 @@ package mak
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/SaulDoesCode/fscache"
 	"github.com/json-iterator/go"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -38,6 +41,8 @@ type Instance struct {
 	ErrorHandler func(*Ctx, error) error
 
 	NotFoundHandler func(*Ctx) error
+
+	Cache fscache.Cache
 }
 
 // AddWare adds middleware(s) to the instance
@@ -235,15 +240,54 @@ func (in *Instance) Run() error {
 	}
 
 	if cf.Assets != "" {
+		assets, err := filepath.Abs(cf.Assets)
+		if err != nil {
+			fmt.Println("assets dir error, cannot get absolute path: ", err)
+			panic("could not get an absolute path for the assets directory")
+		}
+		cf.Assets = assets
+
 		stat, err := os.Stat(cf.Assets)
 		if err != nil {
+			fmt.Println("assets dir err: ", err)
 			panic("something wrong with the Assets dir/path, best you check what's going on")
 		}
 		if !stat.IsDir() {
-			panic("the path of assets, leads to no folder sir, you best fix that now")
+			panic("the path of assets, leads to no folder sir, you best fix that now!")
 		}
 
-		in.STATIC("/", cf.Assets, in.AssetWares...)
+		cache, err := fscache.New(cf.Assets, 0775, time.Minute*30)
+		if err != nil {
+			fmt.Println("fscache error, could not create a cache: ", err)
+			panic(err)
+		}
+		in.Cache = cache
+
+		in.AddHTTPWare(func(h http.Handler) http.Handler {
+			return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				location := cf.Assets + req.URL.Path
+				if hasLastSlash(location) {
+					location += "index.html"
+				}
+
+				r, w, err := cache.Get(location)
+				if err != nil {
+					h.ServeHTTP(rw, req)
+					return
+				}
+				defer r.Close()
+				if w != nil {
+					go func() {
+						defer w.Close()
+						h.ServeHTTP(&fscache.ResWrapper{
+							ResponseWriter: rw,
+							Writer:         w,
+						}, req)
+					}()
+				}
+				io.Copy(rw, r)
+			})
+		})
 	}
 
 	if cf.AutoCert {
