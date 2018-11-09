@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -269,10 +270,18 @@ func (in *Instance) Run() error {
 	} else {
 		if in.SecondaryServerHandler == nil {
 			in.SecondaryServer.Handler = http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-				target := "https://" + req.Host + req.URL.Path
+				target := "https://"
+
+				host, _, err := net.SplitHostPort(req.Host)
+				if err != nil {
+					host = req.Host
+				}
+
+				target += host + in.Server.Addr + req.URL.Path
 				if len(req.URL.RawQuery) > 0 {
 					target += "?" + req.URL.RawQuery
 				}
+
 				http.Redirect(res, req, target, 301)
 			})
 		} else {
