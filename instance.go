@@ -3,7 +3,6 @@ package mak
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -272,54 +271,56 @@ func (in *Instance) Run() error {
 		in.STATIC("/", cf.Assets, in.AssetWares...)
 	}
 
-	if cf.Cache != "" {
-		cachedir, err := filepath.Abs(cf.Cache)
-		if err != nil {
-			fmt.Println("cache dir error, cannot get absolute path: ", err)
-			panic("could not get an absolute path for the cache directory")
-		}
-		cf.Cache = cachedir
+	/*
+		if cf.Cache != "" {
+			cachedir, err := filepath.Abs(cf.Cache)
+			if err != nil {
+				fmt.Println("cache dir error, cannot get absolute path: ", err)
+				panic("could not get an absolute path for the cache directory")
+			}
+			cf.Cache = cachedir
 
-		stat, err := os.Stat(cf.Cache)
-		if err != nil {
-			fmt.Println("cache dir err: ", err)
-			panic("something wrong with the Assets dir/path, best you check what's going on")
-		}
-		if !stat.IsDir() {
-			panic("the path of cache, leads to no folder sir, you best fix that now!")
-		}
+			stat, err := os.Stat(cf.Cache)
+			if err != nil {
+				fmt.Println("cache dir err: ", err)
+				panic("something wrong with the Assets dir/path, best you check what's going on")
+			}
+			if !stat.IsDir() {
+				panic("the path of cache, leads to no folder sir, you best fix that now!")
+			}
 
-		cache, err := fscache.New(cf.Cache, 0444, time.Minute*30)
-		if err != nil {
-			fmt.Println("fscache error, could not create a cache: ", err)
-			panic(err)
-		}
-		in.Cache = cache
+			cache, err := fscache.New(cf.Cache, 0444, time.Minute*30)
+			if err != nil {
+				fmt.Println("fscache error, could not create a cache: ", err)
+				panic(err)
+			}
+			in.Cache = cache
 
-		in.AddHTTPWare(func(h http.Handler) http.Handler {
-			return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				location := cf.Cache + req.URL.Path
+			in.AddHTTPWare(func(h http.Handler) http.Handler {
+				return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					location := cf.Cache + req.URL.Path
 
-				r, w, err := cache.Get(location)
-				if err != nil {
-					h.ServeHTTP(rw, req)
-					return
-				}
-				defer r.Close()
-				if w != nil {
-					go func() {
-						defer w.Close()
-						h.ServeHTTP(&fscache.ResWrapper{
-							ResponseWriter: rw,
-							Writer:         w,
-						}, req)
-					}()
-				}
-				io.Copy(rw, r)
+					r, w, err := cache.Get(location)
+					if err != nil {
+						h.ServeHTTP(rw, req)
+						return
+					}
+					defer r.Close()
+					if w != nil {
+						go func() {
+							defer w.Close()
+							h.ServeHTTP(&fscache.ResWrapper{
+								ResponseWriter: rw,
+								Writer:         w,
+							}, req)
+						}()
+					}
+					io.Copy(rw, r)
+				})
 			})
-		})
-	}
+		}
 
+	*/
 	if cf.AutoCert {
 		in.AutoCert = &autocert.Manager{
 			Prompt: autocert.AcceptTOS,
