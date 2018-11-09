@@ -182,8 +182,12 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 func (a *AssetCache) Get(name string) (*Asset, bool) {
 	name = path.Clean(a.Dir + name)
 
+	if hasLastSlash(name) {
+		name += "index.html"
+	}
+
 	raw, ok := a.Cache.GetStringKey(name)
-	if ok {
+	if !ok {
 		asset, err := a.Gen(name)
 		return asset, err == nil
 	}
