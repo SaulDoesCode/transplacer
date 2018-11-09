@@ -37,6 +37,8 @@ type AssetCache struct {
 	CacheControl string
 
 	Ticker *time.Ticker
+
+	Instance *Instance
 }
 
 // MakeAssetCache prepares a new *AssetCache for use
@@ -189,6 +191,9 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 	raw, ok := a.Cache.GetStringKey(name)
 	if !ok {
 		asset, err := a.Gen(name)
+		if a.Instance.Config.DevMode {
+			fmt.Println("AssetCache.Get err: ", err, "name: ", name)
+		}
 		return asset, err == nil
 	}
 	return raw.(*Asset), ok

@@ -266,6 +266,7 @@ func (in *Instance) Run() error {
 			panic("could not establish an asset cache")
 		}
 		in.AssetCache = ac
+		in.AssetCache.Instance = in
 
 		in.STATIC("/", cf.Assets, in.AssetWares...)
 	}
