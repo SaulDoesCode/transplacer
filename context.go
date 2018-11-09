@@ -737,14 +737,16 @@ func (c *Ctx) WriteFile(filename string) error {
 		c.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
-	if strings.Contains(filename, ".html") {
-		var raw []byte
-		_, err := content.Read(raw)
-		if err != nil {
-			return err
+	/*
+		if strings.Contains(filename, ".html") {
+			var raw []byte
+			_, err := content.Read(raw)
+			if err != nil {
+				return err
+			}
+			return c.WriteHTML(string(raw))
 		}
-		return c.WriteHTML(string(raw))
-	}
+	*/
 	return c.WriteContent(content)
 }
 
