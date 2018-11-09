@@ -39,6 +39,8 @@ type Instance struct {
 	ErrorHandler func(*Ctx, error) error
 
 	NotFoundHandler func(*Ctx) error
+
+	AssetCache *AssetCache
 }
 
 // AddWare adds middleware(s) to the instance
@@ -257,7 +259,14 @@ func (in *Instance) Run() error {
 			panic("the path of assets, leads to no folder sir, you best fix that now!")
 		}
 
-		// in.STATIC("/", cf.Assets, in.AssetWares...)
+		ac, err := MakeAssetCache(cf.Assets, time.Minute*30, time.Second*30)
+		if err != nil {
+			fmt.Println("asset cache failure: ", err)
+			panic("could not establish an asset cache")
+		}
+		in.AssetCache = ac
+
+		in.STATIC("/", cf.Assets, in.AssetWares...)
 	}
 
 	if cf.Cache != "" {

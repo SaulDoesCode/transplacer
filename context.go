@@ -671,6 +671,12 @@ func (c *Ctx) WriteFile(filename string) error {
 		filename += "index.html"
 	}
 
+	if c.instance.AssetCache != nil {
+		if c.instance.AssetCache.Handler(c) == nil {
+			return nil
+		}
+	}
+
 	fi, err := os.Stat(filename)
 	if err != nil {
 		return err
