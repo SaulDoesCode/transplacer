@@ -25,23 +25,25 @@ func (err *Err) Envoy(c *Ctx) error {
 
 }
 
-func newerr(code int, value string) *Err {
+// MakeErr generates a new Mak error
+// totally compatible with conventional go errors
+func MakeErr(code int, value string) *Err {
 	return &Err{Code: code, Value: value}
 }
 
 var (
 	// ErrNotFound is the standard 404 error
-	ErrNotFound = newerr(404, "not found")
+	ErrNotFound = MakeErr(404, "not found")
 	// ErrMethodNotAllowed is the standard 405 error
-	ErrMethodNotAllowed = newerr(405, "method not allowed")
+	ErrMethodNotAllowed = MakeErr(405, "method not allowed")
 	// ErrIndeterminateData for when reflection goes wrong or there is malformed data
-	ErrIndeterminateData = newerr(400, "unparsible or malformed data")
+	ErrIndeterminateData = MakeErr(400, "unparsible or malformed data")
 	// ErrUnsupportedMediaType for when a media type cannot be handled
-	ErrUnsupportedMediaType = newerr(415, "unsupported media type")
+	ErrUnsupportedMediaType = MakeErr(415, "unsupported media type")
 	// ErrRequestBodyEmpty request's body content is absent; malformed POST most likely.
-	ErrRequestBodyEmpty = newerr(400, "request body empty, cannot proceed")
+	ErrRequestBodyEmpty = MakeErr(400, "request body empty, cannot proceed")
 	// ErrBadRange is for when the Requested Range is Not Satisfiable (out of bounds or such)
-	ErrBadRange = newerr(416, "unsatisfiable range")
+	ErrBadRange = MakeErr(416, "unsatisfiable range")
 	// ErrPreConditionFail a precondition for request completion has not been met
-	ErrPreConditionFail = newerr(412, "precondition failed")
+	ErrPreConditionFail = MakeErr(412, "precondition failed")
 )
