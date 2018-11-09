@@ -155,6 +155,7 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		R:             r,
 		W:             rw,
 
+		instance:               in,
 		parseParamsOnce:        &sync.Once{},
 		parseClientAddressOnce: &sync.Once{},
 	}
