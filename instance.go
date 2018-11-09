@@ -75,6 +75,8 @@ type Config struct {
 	DevAddress                string `json:"dev_address,omitempty" toml:"dev_address,omitempty"`
 	DevSecondaryServerAddress string `json:"dev_secondary_server_address,omitempty" toml:"dev_secondary_server_address,omitempty"`
 
+	PreferMsgpack bool `json:"prefer_msgpack,omitempty" toml:"prefer_msgpack,omitempty"`
+
 	AutoPush bool `json:"autopush,omitempty" toml:"autopush,omitempty"`
 
 	AutoCert    bool     `json:"autocert,omitempty" toml:"autocert,omitempty"`

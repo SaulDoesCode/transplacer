@@ -2,8 +2,8 @@ package mak
 
 // Err is mak's standard error type
 type Err struct {
-	Code  int
-	Value string
+	Code  int    `json:"code" msgpack:"code"`
+	Value string `json:"err" msgpack:"err"`
 }
 
 func (err *Err) Error() string {
@@ -13,7 +13,10 @@ func (err *Err) Error() string {
 // Send an error response through the context
 func (err *Err) Send(c *Ctx) error {
 	c.SetStatus(err.Code)
-	return nil
+	if c.instance.Config.PreferMsgpack {
+		return c.WriteMsgpack(err)
+	}
+	return c.WriteJSON(err)
 }
 
 // Envoy set's the context's status code and just the returns the error
