@@ -672,7 +672,10 @@ func (c *Ctx) WriteFile(filename string) error {
 	}
 
 	if c.instance.AssetCache != nil {
-		return c.instance.AssetCache.Handler(c)
+		asset, ok := c.instance.AssetCache.Get(filename)
+		if ok {
+			return asset.Serve(c)
+		}
 	}
 
 	fi, err := os.Stat(filename)
@@ -706,7 +709,10 @@ func (c *Ctx) WriteFile(filename string) error {
 
 	f, err := os.Open(filename)
 	if err != nil {
-		return err
+		if c.instance.ErrorHandler != nil {
+			return c.instance.ErrorHandler(c, err)
+		}
+		return ErrNotFound.Envoy(c)
 	}
 	defer f.Close()
 
