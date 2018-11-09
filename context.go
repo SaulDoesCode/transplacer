@@ -700,20 +700,6 @@ func (c *Ctx) WriteFile(filename string) error {
 		mt      time.Time
 	)
 
-	r, _, err := c.instance.AssetsCache.Get(filename)
-	if err == nil {
-		if c.GetHeader("Content-Type") == "" {
-			if ct == "" {
-				ct = mime.TypeByExtension(filepath.Ext(filename))
-			}
-
-			if ct != "" {
-				c.SetHeader("Content-Type", ct)
-			}
-		}
-		io.Copy(c, r)
-	}
-
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -733,7 +719,7 @@ func (c *Ctx) WriteFile(filename string) error {
 			ct = mime.TypeByExtension(filepath.Ext(filename))
 		}
 
-		if ct != "" {
+		if ct != "" { // Don't worry, someone will check it later
 			c.SetHeader("Content-Type", ct)
 		}
 	}
@@ -756,6 +742,16 @@ func (c *Ctx) WriteFile(filename string) error {
 		c.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
+	/*
+		if strings.Contains(filename, ".html") {
+			var raw []byte
+			_, err := content.Read(raw)
+			if err != nil {
+				return err
+			}
+			return c.WriteHTML(string(raw))
+		}
+	*/
 	return c.WriteContent(content)
 }
 
