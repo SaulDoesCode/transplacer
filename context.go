@@ -219,15 +219,6 @@ func (c *Ctx) Write(content io.ReadSeeker) error {
 			)
 		}
 
-		if cs := c.Cookies(); len(cs) > 0 {
-			vs := make([]string, 0, len(cs))
-			for _, c := range cs {
-				vs = append(vs, c.String())
-			}
-
-			c.SetRawHeader("set-cookie", vs)
-		}
-
 		c.W.WriteHeader(c.Status)
 		if c.R.Method != "HEAD" {
 			io.CopyN(c.W, reader, c.ContentLength)
