@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +27,8 @@ type Instance struct {
 
 	Middleware    []Middleware
 	PreMiddleware []Middleware
+
+	AssetWares []Middleware
 
 	SecondaryServerHandler http.Handler
 
@@ -229,6 +232,18 @@ func (in *Instance) Run() error {
 
 	if in.SecondaryServer.Addr == "" {
 		in.SecondaryServer = nil
+	}
+
+	if cf.Assets != "" {
+		stat, err := os.Stat(cf.Assets)
+		if err != nil {
+			panic("something wrong with the Assets dir/path, best you check what's going on")
+		}
+		if !stat.IsDir() {
+			panic("the path of assets, leads to no folder sir, you best fix that now")
+		}
+
+		in.STATIC("/", cf.Assets, in.AssetWares...)
 	}
 
 	if cf.AutoCert {
