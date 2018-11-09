@@ -661,9 +661,14 @@ func (c *Ctx) WriteFile(filename string) error {
 	filename, err := filepath.Abs(filename)
 	if err != nil {
 		return err
-	} else if fi, err := os.Stat(filename); err != nil {
+	}
+
+	fi, err := os.Stat(filename)
+	if err != nil {
 		return err
-	} else if fi.IsDir() {
+	}
+
+	if fi.IsDir() {
 		if p := c.R.URL.EscapedPath(); !hasLastSlash(p) {
 			p = path.Base(p) + "/"
 			if q := c.R.URL.RawQuery; q != "" {
@@ -690,7 +695,7 @@ func (c *Ctx) WriteFile(filename string) error {
 	}
 	defer f.Close()
 
-	fi, err := f.Stat()
+	fi, err = f.Stat()
 	if err != nil {
 		return err
 	}
