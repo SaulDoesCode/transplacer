@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -21,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
+	"github.com/golang/protobuf/proto"
 	"github.com/json-iterator/go"
 	"github.com/vmihailenco/msgpack"
 	"golang.org/x/net/html"
@@ -557,18 +560,13 @@ func (c *Ctx) WriteBlob(b []byte) error {
 
 // WriteString responds to the client with the "text/plain" content s.
 func (c *Ctx) WriteString(s string) error {
-	c.SetHeader("content-type", "text/plain; charset=utf-8")
+	c.SetContentType("text/plain; charset=utf-8")
 	return c.WriteBlob([]byte(s))
 }
 
 // WriteJSON responds to the client with the "application/json" content v.
 func (c *Ctx) WriteJSON(v interface{}) error {
-	var (
-		b   []byte
-		err error
-	)
-
-	b, err = jsoniter.Marshal(v)
+	b, err := jsoniter.Marshal(v)
 	if err != nil {
 		return err
 	}
@@ -579,12 +577,7 @@ func (c *Ctx) WriteJSON(v interface{}) error {
 
 // WriteMsgpack responds to the client with the "application/msgpack" content v.
 func (c *Ctx) WriteMsgpack(v interface{}) error {
-	var (
-		b   []byte
-		err error
-	)
-
-	b, err = msgpack.Marshal(v)
+	b, err := msgpack.Marshal(v)
 	if err != nil {
 		return err
 	}
@@ -593,14 +586,32 @@ func (c *Ctx) WriteMsgpack(v interface{}) error {
 	return c.WriteBlob(b)
 }
 
+// WriteProtobuf responds to the client with the "application/protobuf" content
+// v.
+func (c *Ctx) WriteProtobuf(v interface{}) error {
+	b, err := proto.Marshal(v.(proto.Message))
+	if err != nil {
+		return err
+	}
+
+	c.SetContentType("application/protobuf")
+	return c.WriteBlob(b)
+}
+
+// WriteTOML responds to the client with the "application/toml" content v.
+func (c *Ctx) WriteTOML(v interface{}) error {
+	buf := &bytes.Buffer{}
+	if err := toml.NewEncoder(buf).Encode(v); err != nil {
+		return err
+	}
+
+	c.SetContentType("application/toml; charset=utf-8")
+	return c.WriteBlob(buf.Bytes())
+}
+
 // WriteXML responds to the client with the "application/xml" content v.
 func (c *Ctx) WriteXML(v interface{}) error {
-	var (
-		b   []byte
-		err error
-	)
-
-	b, err = xml.Marshal(v)
+	b, err := xml.Marshal(v)
 	if err != nil {
 		return err
 	}
@@ -933,6 +944,12 @@ func (c *Ctx) Bind(v interface{}) error {
 		err = jsoniter.NewDecoder(c.R.Body).Decode(v)
 	case "application/msgpack", "application/x-msgpack":
 		err = msgpack.NewDecoder(c.R.Body).Decode(v)
+	case "application/protobuf", "application/x-protobuf":
+		if b, err := ioutil.ReadAll(c.R.Body); err == nil {
+			err = proto.Unmarshal(b, v.(proto.Message))
+		}
+	case "application/toml", "application/x-toml":
+		_, err = toml.DecodeReader(c.R.Body, v)
 	case "application/xml":
 		err = xml.NewDecoder(c.R.Body).Decode(v)
 	case "application/x-www-form-urlencoded", "multipart/form-data":
