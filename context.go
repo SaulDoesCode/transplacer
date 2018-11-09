@@ -321,7 +321,7 @@ func (c *Ctx) WriteContent(content io.ReadSeeker) error {
 
 	if c.Status >= 300 && c.Status < 400 {
 		if c.Status == 304 {
-			c.DelHeader("content-type")
+			c.DelHeader("Content-Type")
 			c.DelHeader("content-length")
 		}
 
@@ -335,7 +335,7 @@ func (c *Ctx) WriteContent(content io.ReadSeeker) error {
 		return nil
 	}
 
-	ct := c.GetHeader("content-type")
+	ct := c.GetHeader("Content-Type")
 	if ct == "" {
 		// Read a chunk to decide between UTF-8 text and binary.
 		b := [1 << 9]byte{}
@@ -503,7 +503,7 @@ func (c *Ctx) WriteContent(content io.ReadSeeker) error {
 		pr, pw := io.Pipe()
 		mw = multipart.NewWriter(pw)
 		c.SetHeader(
-			"content-type",
+			"Content-Type",
 			"multipart/byteranges; boundary="+mw.Boundary(),
 		)
 
@@ -655,7 +655,7 @@ func (c *Ctx) WriteHTML(h string) error {
 		f(tree)
 	}
 
-	c.SetHeader("content-type", "text/html; charset=utf-8")
+	c.SetHeader("Content-Type", "text/html; charset=utf-8")
 
 	return c.WriteBlob([]byte(h))
 }
@@ -680,11 +680,13 @@ func (c *Ctx) WriteFile(filename string) error {
 			}
 
 			c.Status = 301
-
 			return c.Redirect(p)
 		}
 
 		filename += "index.html"
+		if c.instance.Config.DevMode {
+			fmt.Println("attempting to serve index.html...")
+		}
 	}
 
 	var (
@@ -707,13 +709,13 @@ func (c *Ctx) WriteFile(filename string) error {
 	content = f
 	mt = fi.ModTime()
 
-	if c.GetHeader("content-type") == "" {
+	if c.GetHeader("Content-Type") == "" {
 		if ct == "" {
 			ct = mime.TypeByExtension(filepath.Ext(filename))
 		}
 
 		if ct != "" { // Don't worry, someone will check it later
-			c.SetHeader("content-type", ct)
+			c.SetHeader("Content-Type", ct)
 		}
 	}
 
@@ -728,13 +730,20 @@ func (c *Ctx) WriteFile(filename string) error {
 		}
 
 		c.SetHeader("etag", fmt.Sprintf(`"%x"`, et))
-		c.SetHeader("cache-control", "private, must-revalidate")
+		c.SetHeader("Cache-Control", "private, must-revalidate")
 	}
 
 	if c.GetHeader("last-modified") == "" {
 		c.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
+	if strings.Contains(filename, ".html") {
+		var raw []byte
+		_, err := content.Read(raw)
+		if err == nil {
+			return c.WriteHTML(string(raw))
+		}
+	}
 	return c.WriteContent(content)
 }
 
@@ -806,7 +815,7 @@ func (c *Ctx) Redirect(url string) error {
 // The headers specifies additional promised request headers. The headers
 // cannot include HTTP/2 pseudo headers like ":path" and ":scheme", which
 // will be added automatically.
-func (c *Ctx) Push(target string, headers map[string]string) error {
+func (c *Ctx) Push(target string, headers http.Header) error {
 	p, ok := c.W.(http.Pusher)
 	if !ok {
 		return nil
@@ -818,9 +827,15 @@ func (c *Ctx) Push(target string, headers map[string]string) error {
 			Header: make(http.Header, l),
 		}
 
-		for name, value := range headers {
-			pos.Header.Set(textproto.CanonicalMIMEHeaderKey(name), value)
+		pos.Header.Set("Cache-Control", "private, must-revalidate")
+
+		for name, values := range headers {
+			pos.Header[textproto.CanonicalMIMEHeaderKey(name)] = values
 		}
+	}
+
+	if c.instance.Config.DevMode {
+		fmt.Println("http2 asset pushed: ", target)
 	}
 
 	return p.Push(target, pos)
