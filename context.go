@@ -672,9 +672,7 @@ func (c *Ctx) WriteFile(filename string) error {
 	}
 
 	if c.instance.AssetCache != nil {
-		if c.instance.AssetCache.Handler(c) == nil {
-			return nil
-		}
+		return c.instance.AssetCache.Handler(c)
 	}
 
 	fi, err := os.Stat(filename)
