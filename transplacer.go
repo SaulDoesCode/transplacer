@@ -139,6 +139,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		Content:     content,
 		Compressed:  Compressed,
 		ModTime:     fs.ModTime(),
+		Ext:         ext,
 	}
 
 	if Compressed {
@@ -203,6 +204,8 @@ func (a *AssetCache) Del(name string) {
 
 // Asset is an http servable resource
 type Asset struct {
+	Ext string
+
 	ContentType string
 
 	Loaded time.Time
@@ -229,6 +232,7 @@ func (as *Asset) Serve(c *Ctx) error {
 	var err error
 	if as.Compressed && strings.Contains(c.Header("accept-encoding"), "gzip") {
 		c.SetHeader("etag", as.EtagCompressed)
+		c.SetHeader("content-encoding", "gzip")
 		n, err = c.Write(as.ContentCompressed)
 	} else {
 		c.SetHeader("etag", as.Etag)
@@ -238,6 +242,10 @@ func (as *Asset) Serve(c *Ctx) error {
 	if err == nil {
 		c.ContentLength += int64(n)
 		c.Written = true
+	}
+
+	if as.Ext == ".html" {
+		c.Push(string(as.Content), nil)
 	}
 	return err
 }

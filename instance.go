@@ -160,6 +160,11 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		parseClientAddressOnce: &sync.Once{},
 	}
 
+	if r.Method == "GET" && r.URL.Path == "/" && in.Config.Assets != "" {
+		ctx.WriteFile("/index.html")
+		return
+	}
+
 	// Chain Middleware
 
 	h := func(c *Ctx) error {
