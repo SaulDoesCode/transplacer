@@ -224,6 +224,13 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	if r.RequestURI == "/" && r.Method == "GET" && in.Config.Assets != "" {
+		err := ctx.WriteFile(prepPath(in.Config.Assets, "index.html"))
+		if err == nil {
+			return
+		}
+	}
 }
 
 // Run let's the mak instance's purpose actuate, until it dies or is otherwise stopped
