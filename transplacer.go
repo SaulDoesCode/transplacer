@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cornelk/hashmap"
+	"github.com/fsnotify/fsnotify"
 )
 
 var (
@@ -39,10 +40,13 @@ type AssetCache struct {
 	Ticker *time.Ticker
 
 	Instance *Instance
+
+	Watch   bool
+	Watcher *fsnotify.Watcher
 }
 
 // MakeAssetCache prepares a new *AssetCache for use
-func MakeAssetCache(dir string, expire time.Duration, interval time.Duration) (*AssetCache, error) {
+func MakeAssetCache(dir string, expire time.Duration, interval time.Duration, watch bool) (*AssetCache, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -52,9 +56,10 @@ func MakeAssetCache(dir string, expire time.Duration, interval time.Duration) (*
 		Cache:        &HashMap{},
 		Expire:       expire,
 		CacheControl: "private, must-revalidate",
+		Watch:        watch,
 	}
 
-	a.SetInterval(interval)
+	a.SetExpiryCheckInterval(interval)
 
 	go func() {
 		for now := range a.Ticker.C {
@@ -67,11 +72,40 @@ func MakeAssetCache(dir string, expire time.Duration, interval time.Duration) (*
 		}
 	}()
 
+	if a.Watch {
+		a.Watcher, err = fsnotify.NewWatcher()
+		if err != nil {
+			panic(fmt.Errorf(
+				"air: failed to build coffer watcher: %v",
+				err,
+			))
+		}
+		go func() {
+			for {
+				select {
+				case e := <-a.Watcher.Events:
+					if a.Instance.Config.DevMode {
+						fmt.Printf(
+							"\nAssetCache watcher event:\n\tfile: %s \n\t event %s\n",
+							e.Name,
+							e.Op.String(),
+						)
+					}
+
+					a.Del(e.Name)
+					a.Gen(e.Name)
+				case err := <-a.Watcher.Errors:
+					fmt.Println("AssetCache watcher error: ", err)
+				}
+			}
+		}()
+	}
+
 	return a, err
 }
 
-// SetInterval generates a new ticker with a set interval
-func (a *AssetCache) SetInterval(interval time.Duration) {
+// SetExpiryCheckInterval generates a new ticker with a set interval
+func (a *AssetCache) SetExpiryCheckInterval(interval time.Duration) {
 	if a.Ticker != nil {
 		a.Ticker.Stop()
 	}
@@ -176,6 +210,13 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 
 	if err == nil {
 		asset.Loaded = time.Now()
+		if ext == ".html" {
+			list, err := queryPushables(string(asset.Content))
+			if err == nil {
+				asset.PushList = list
+			}
+		}
+
 		a.Cache.Set(name, asset)
 	}
 
@@ -199,8 +240,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 
 // Del removes an asset, nb. not the file, the file is fine
 func (a *AssetCache) Del(name string) {
-	name = path.Clean(a.Dir + name)
-	a.Cache.Del(name)
+	a.Cache.Del(prepPath(a.Dir, name))
 }
 
 // Asset is an http servable resource
@@ -222,6 +262,8 @@ type Asset struct {
 	EtagCompressed string
 
 	Compressed bool
+
+	PushList []string
 }
 
 // Serve an asset through c *Ctx
@@ -258,8 +300,10 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.ContentLength += int64(n)
 		c.Written = true
 		c.SetHeader("cache-control", as.CacheControl)
-		if as.Ext == ".html" {
-			c.Push(string(as.Content), nil)
+		if len(as.PushList) > 0 {
+			for _, target := range as.PushList {
+				c.Push(target, nil)
+			}
 		}
 	}
 	return err

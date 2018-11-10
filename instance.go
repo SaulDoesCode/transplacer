@@ -94,7 +94,8 @@ type Config struct {
 	TLSKey  string `json:"tls_key,omitempty" toml:"tls_key,omitempty"`
 	TLSCert string `json:"tls_cert,omitempty" toml:"tls_cert,omitempty"`
 
-	Assets string `json:"assets,omitempty" toml:"assets,omitempty"`
+	Assets           string `json:"assets,omitempty" toml:"assets,omitempty"`
+	DoNotWatchAssets bool   `json:"do_not_watch_assets,omitempty" toml:"do_not_watch_assets,omitempty"`
 
 	Private string `json:"private,omitempty" toml:"private,omitempty"`
 
@@ -264,7 +265,12 @@ func (in *Instance) Run() error {
 			panic("the path of assets, leads to no folder sir, you best fix that now!")
 		}
 
-		ac, err := MakeAssetCache(cf.Assets, time.Minute*30, time.Second*30)
+		ac, err := MakeAssetCache(
+			cf.Assets,
+			time.Minute*30,
+			time.Second*30,
+			cf.DoNotWatchAssets,
+		)
 		if err != nil {
 			fmt.Println("asset cache failure: ", err)
 			panic("could not establish an asset cache")
