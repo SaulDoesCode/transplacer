@@ -218,6 +218,9 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		}
 
 		a.Cache.Set(name, asset)
+		if a.Watch {
+			a.Watcher.Add(name)
+		}
 	}
 
 	return asset, err
@@ -240,7 +243,11 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 
 // Del removes an asset, nb. not the file, the file is fine
 func (a *AssetCache) Del(name string) {
-	a.Cache.Del(prepPath(a.Dir, name))
+	name = prepPath(a.Dir, name)
+	a.Cache.Del(name)
+	if a.Watch {
+		a.Watcher.Remove(name)
+	}
 }
 
 // Asset is an http servable resource
@@ -302,7 +309,7 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.SetHeader("cache-control", as.CacheControl)
 		if len(as.PushList) > 0 {
 			for _, target := range as.PushList {
-				c.Push(target, nil)
+				c.Push(target, c.R.Header)
 			}
 		}
 	}
