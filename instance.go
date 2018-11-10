@@ -161,6 +161,14 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		parseClientAddressOnce: &sync.Once{},
 	}
 
+	if r.RequestURI == "/" && r.Method == "GET" && in.AssetCache != nil {
+		asset, ok := in.AssetCache.Get("/index.html")
+		if ok {
+			asset.Serve(ctx)
+			return
+		}
+	}
+
 	// Chain Middleware
 
 	h := func(c *Ctx) error {
@@ -275,11 +283,6 @@ func (in *Instance) Run() error {
 		in.AssetCache.Instance = in
 
 		in.STATIC("/", cf.Assets, in.AssetWares...)
-		indexPath := prepPath(cf.Assets, "index.html")
-		fi, err := os.Stat(indexPath)
-		if err == nil && !fi.IsDir() {
-			in.FILE("/", indexPath, in.AssetWares...)
-		}
 	}
 
 	if cf.Cache != "" {

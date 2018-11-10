@@ -633,6 +633,10 @@ func (c *Ctx) WriteFile(filename string) error {
 		filename += "index.html"
 	}
 
+	if c.instance.Config.DevMode {
+		fmt.Println("\n\tWriteFile: ", filename, "\n\t")
+	}
+
 	if c.instance.AssetCache != nil {
 		asset, ok := c.instance.AssetCache.Get(filename)
 		if ok {
