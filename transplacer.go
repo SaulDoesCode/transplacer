@@ -135,11 +135,12 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	Compressed := stringsContainsCI(Compressable, ext)
 
 	asset := &Asset{
-		ContentType: ContentType,
-		Content:     content,
-		Compressed:  Compressed,
-		ModTime:     fs.ModTime(),
-		Ext:         ext,
+		ContentType:  ContentType,
+		Content:      content,
+		Compressed:   Compressed,
+		CacheControl: a.CacheControl,
+		ModTime:      fs.ModTime(),
+		Ext:          ext,
 	}
 
 	if Compressed {
@@ -188,7 +189,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 	raw, ok := a.Cache.GetStringKey(name)
 	if !ok {
 		asset, err := a.Gen(name)
-		if a.Instance.Config.DevMode {
+		if err != nil && a.Instance.Config.DevMode {
 			fmt.Println("AssetCache.Get err: ", err, "name: ", name)
 		}
 		return asset, err == nil
@@ -215,6 +216,8 @@ type Asset struct {
 	Content           []byte
 	ContentCompressed []byte
 
+	CacheControl string
+
 	Etag           string
 	EtagCompressed string
 
@@ -228,11 +231,23 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.SetHeader("last-modified", as.ModTime.UTC().Format(http.TimeFormat))
 	}
 
+	match := c.Header("If-None-Match")
+	if match == "" {
+		match = c.Header("If-Match")
+	}
+	if match != "" {
+		if strings.Contains(match, as.Etag) ||
+			strings.Contains(match, as.EtagCompressed) {
+			c.WriteContent(nil)
+		}
+	}
+
 	var n int
 	var err error
 	if as.Compressed && strings.Contains(c.Header("accept-encoding"), "gzip") {
 		c.SetHeader("etag", as.EtagCompressed)
 		c.SetHeader("content-encoding", "gzip")
+		c.SetHeader("vary", "accept-encoding")
 		n, err = c.Write(as.ContentCompressed)
 	} else {
 		c.SetHeader("etag", as.Etag)
@@ -242,10 +257,10 @@ func (as *Asset) Serve(c *Ctx) error {
 	if err == nil {
 		c.ContentLength += int64(n)
 		c.Written = true
-	}
-
-	if as.Ext == ".html" {
-		c.Push(string(as.Content), nil)
+		c.SetHeader("cache-control", as.CacheControl)
+		if as.Ext == ".html" {
+			c.Push(string(as.Content), nil)
+		}
 	}
 	return err
 }
