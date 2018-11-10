@@ -275,6 +275,11 @@ func (in *Instance) Run() error {
 		in.AssetCache.Instance = in
 
 		in.STATIC("/", cf.Assets, in.AssetWares...)
+		indexPath := prepPath(cf.Assets, "index.html")
+		fi, err := os.Stat(indexPath)
+		if err == nil && !fi.IsDir() {
+			in.FILE("/", indexPath, in.AssetWares...)
+		}
 	}
 
 	if cf.Cache != "" {
