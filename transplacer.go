@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -287,44 +286,32 @@ func (as *Asset) Serve(c *Ctx) error {
 	if match != "" {
 		if strings.Contains(match, as.Etag) ||
 			strings.Contains(match, as.EtagCompressed) {
-			c.WriteContent(nil)
+			return c.WriteContent(nil)
 		}
 	}
 
-	var err error
+	if c.R.TLS != nil && c.GetHeader("strict-transport-security") == "" {
+		c.SetHeader("strict-transport-security", "max-age=31536000")
+	}
+
+	c.SetHeader("cache-control", as.CacheControl)
+	if len(as.PushList) > 0 {
+		pushWithHeaders(c, as.PushList)
+	}
+
 	if as.Compressed && strings.Contains(c.Header("accept-encoding"), "gzip") {
 		c.SetHeader("etag", as.EtagCompressed)
 		c.SetHeader("content-encoding", "gzip")
 		c.SetHeader("vary", "accept-encoding")
-		_, err = io.Copy(c, as.ContentCompressed)
+		http.ServeContent(c.W, c.R, "", as.ModTime, as.Content)
 	} else {
 		c.SetHeader("etag", as.Etag)
-		_, err = io.Copy(c, as.ContentCompressed)
+		http.ServeContent(c.W, c.R, "", as.ModTime, as.ContentCompressed)
 	}
 
-	if err == nil {
+	c.Written = true
 
-		if c.R.TLS != nil && c.GetHeader("strict-transport-security") == "" {
-			c.SetHeader("strict-transport-security", "max-age=31536000")
-		}
-
-		c.SetHeader("cache-control", as.CacheControl)
-		if len(as.PushList) > 0 {
-			pushWithHeaders(c, as.PushList)
-		}
-
-		if c.ContentLength > 0 &&
-			c.GetHeader("content-length") == "" &&
-			c.GetHeader("transfer-encoding") == "" &&
-			c.Status >= 200 && c.Status != 204 &&
-			(c.Status >= 300 || c.R.Method != "CONNECT") {
-			c.SetHeader(
-				"content-length",
-				strconv.FormatInt(c.ContentLength, 10),
-			)
-		}
-	}
-	return err
+	return nil
 }
 
 func gzipBytes(content []byte, level int) ([]byte, error) {
