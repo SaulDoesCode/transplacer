@@ -627,56 +627,9 @@ func (c *Ctx) WriteHTML(h string) error {
 	return c.WriteBlob([]byte(h))
 }
 
-func queryPushables(h string) ([]string, error) {
-	list := []string{}
-	tree, err := html.Parse(strings.NewReader(h))
-	if err != nil {
-		return list, err
-	}
-
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.ElementNode {
-			target := ""
-			switch n.Data {
-			case "link":
-				for _, a := range n.Attr {
-					if a.Key == "href" {
-						target = a.Val
-						break
-					}
-				}
-			case "img", "script":
-				for _, a := range n.Attr {
-					if a.Key == "src" {
-						target = a.Val
-						break
-					}
-				}
-			}
-
-			if path.IsAbs(target) {
-				list = append(list, target)
-			}
-		}
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
-	}
-
-	f(tree)
-	return list, err
-}
-
 // WriteFile responds to the client with a file content with the filename.
 func (c *Ctx) WriteFile(filename string) error {
-	filename, err := filepath.Abs(filename)
-	if err != nil {
-		return err
-	}
-
-	if hasLastSlash(filename) {
+	if hasLastSlash(filename) || filename == "" {
 		filename += "index.html"
 	}
 
@@ -685,6 +638,11 @@ func (c *Ctx) WriteFile(filename string) error {
 		if ok {
 			return asset.Serve(c)
 		}
+	}
+
+	filename, err := filepath.Abs(filename)
+	if err != nil {
+		return err
 	}
 
 	fi, err := os.Stat(filename)
@@ -761,16 +719,6 @@ func (c *Ctx) WriteFile(filename string) error {
 		c.SetHeader("last-modified", mt.UTC().Format(http.TimeFormat))
 	}
 
-	/*
-		if strings.Contains(filename, ".html") {
-			var raw []byte
-			_, err := content.Read(raw)
-			if err != nil {
-				return err
-			}
-			return c.WriteHTML(string(raw))
-		}
-	*/
 	return c.WriteContent(content)
 }
 
@@ -971,9 +919,9 @@ func (c *Ctx) Bind(v interface{}) error {
 	switch mt {
 	case "application/json":
 		err = jsoniter.NewDecoder(c.R.Body).Decode(v)
-	case "application/msgpack", "application/x-msgpack":
+	case "application/msgpack":
 		err = msgpack.NewDecoder(c.R.Body).Decode(v)
-	case "application/protobuf", "application/x-protobuf":
+	case "application/protobuf":
 		if b, err := ioutil.ReadAll(c.R.Body); err == nil {
 			err = proto.Unmarshal(b, v.(proto.Message))
 		}
@@ -1074,10 +1022,53 @@ func pushWithHeaders(c *Ctx, list []string) {
 		reqHeaders := cloneHeader(c.R.Header)
 		reqHeaders.Del("etag")
 		for name := range reqHeaders {
-			if strings.Contains(name, "if") {
+			if strings.Contains(name, "if") ||
+				strings.Contains(name, "modified") {
 				reqHeaders.Del(name)
 			}
 		}
 		c.Push(target, reqHeaders)
 	}
+}
+
+func queryPushables(h string) ([]string, error) {
+	list := []string{}
+	tree, err := html.Parse(strings.NewReader(h))
+	if err != nil {
+		return list, err
+	}
+
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			target := ""
+			switch n.Data {
+			case "link":
+				for _, a := range n.Attr {
+					if a.Key == "href" {
+						target = a.Val
+						break
+					}
+				}
+			case "img", "script":
+				for _, a := range n.Attr {
+					if a.Key == "src" {
+						target = a.Val
+						break
+					}
+				}
+			}
+
+			if path.IsAbs(target) {
+				list = append(list, target)
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(tree)
+	return list, err
 }
