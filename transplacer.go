@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -295,16 +296,32 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.SetHeader("etag", as.EtagCompressed)
 		c.SetHeader("content-encoding", "gzip")
 		c.SetHeader("vary", "accept-encoding")
-		err = c.WriteContent(as.ContentCompressed)
+		_, err = io.Copy(c, as.ContentCompressed)
 	} else {
 		c.SetHeader("etag", as.Etag)
-		err = c.WriteContent(as.Content)
+		_, err = io.Copy(c, as.ContentCompressed)
 	}
 
 	if err == nil {
+
+		if c.R.TLS != nil && c.GetHeader("strict-transport-security") == "" {
+			c.SetHeader("strict-transport-security", "max-age=31536000")
+		}
+
 		c.SetHeader("cache-control", as.CacheControl)
 		if len(as.PushList) > 0 {
 			pushWithHeaders(c, as.PushList)
+		}
+
+		if c.ContentLength >= 0 &&
+			c.GetHeader("content-length") == "" &&
+			c.GetHeader("transfer-encoding") == "" &&
+			c.Status >= 200 && c.Status != 204 &&
+			(c.Status >= 300 || c.R.Method != "CONNECT") {
+			c.SetHeader(
+				"content-length",
+				strconv.FormatInt(c.ContentLength, 10),
+			)
 		}
 	}
 	return err
