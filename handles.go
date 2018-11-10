@@ -2,7 +2,6 @@ package mak
 
 import (
 	"os"
-	"path/filepath"
 )
 
 // GET registers a new GET route for the path with the matching h in the router
@@ -63,10 +62,7 @@ func (in *Instance) TRACE(path string, h Handler, wares ...Middleware) {
 // from the root with the optional route-level gases.
 func (in *Instance) STATIC(prefix, root string, wares ...Middleware) {
 	h := func(c *Ctx) error {
-		err := c.WriteFile(filepath.Join(
-			root,
-			c.Param("*").Value().String(),
-		))
+		err := c.WriteFile(prepPath(root, c.Param("*").Value().String()))
 		if os.IsNotExist(err) {
 			if in.NotFoundHandler != nil {
 				return in.NotFoundHandler(c)

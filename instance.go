@@ -161,14 +161,6 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		parseClientAddressOnce: &sync.Once{},
 	}
 
-	if r.RequestURI == "/" && r.Method == "GET" && in.AssetCache != nil {
-		asset, ok := in.AssetCache.Get("/index.html")
-		if ok {
-			asset.Serve(ctx)
-			return
-		}
-	}
-
 	// Chain Middleware
 
 	h := func(c *Ctx) error {

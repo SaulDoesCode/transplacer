@@ -332,12 +332,14 @@ func gzipBytes(content []byte, level int) ([]byte, error) {
 }
 
 func prepPath(host, file string) string {
-	p := host + file
-	if strings.Contains(file, host) {
-		p = file
+	file = path.Clean(file)
+
+	if !strings.Contains(file, host) {
+		file = filepath.Join(host, file)
 	}
-	if hasLastSlash(p) {
-		p += "index.html"
+
+	if file[len(file)-1] == '/' {
+		return filepath.Join(file, "index.html")
 	}
-	return path.Clean(p)
+	return file
 }
