@@ -161,13 +161,9 @@ func (in *Instance) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		parseClientAddressOnce: &sync.Once{},
 	}
 
-	loadindex := r.Method == "GET" && r.URL.Path == "/" && in.Config.Assets != ""
 	// Chain Middleware
 
 	h := func(c *Ctx) error {
-		if loadindex {
-			return ctx.WriteFile("/index.html")
-		}
 		rh := in.Router.Route(c)
 		h := func(c *Ctx) error {
 			if err := rh(c); err != nil {

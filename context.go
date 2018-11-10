@@ -321,7 +321,7 @@ func (c *Ctx) WriteContent(content io.ReadSeeker) error {
 
 	if c.Status >= 300 && c.Status < 400 {
 		if c.Status == 304 {
-			c.DelHeader("Content-Type")
+			c.DelHeader("content-type")
 			c.DelHeader("content-length")
 		}
 
@@ -618,9 +618,7 @@ func (c *Ctx) WriteHTML(h string) error {
 	if c.instance != nil && c.instance.Config.AutoPush && c.R.ProtoMajor == 2 {
 		list, err := queryPushables(h)
 		if err == nil {
-			for _, target := range list {
-				c.Push(target, nil)
-			}
+			pushWithHeaders(c, list)
 		}
 	}
 
@@ -1059,4 +1057,27 @@ func bindParams(v interface{}, params []*RequestParam) error {
 	}
 
 	return nil
+}
+
+func cloneHeader(h http.Header) http.Header {
+	h2 := make(http.Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
+	}
+	return h2
+}
+
+func pushWithHeaders(c *Ctx, list []string) {
+	for _, target := range list {
+		reqHeaders := cloneHeader(c.R.Header)
+		reqHeaders.Del("etag")
+		for name := range reqHeaders {
+			if strings.Contains(name, "if") {
+				reqHeaders.Del(name)
+			}
+		}
+		c.Push(target, reqHeaders)
+	}
 }

@@ -308,9 +308,7 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.Written = true
 		c.SetHeader("cache-control", as.CacheControl)
 		if len(as.PushList) > 0 {
-			for _, target := range as.PushList {
-				c.Push(target, c.R.Header)
-			}
+			pushWithHeaders(c, as.PushList)
 		}
 	}
 	return err
