@@ -303,10 +303,10 @@ func (as *Asset) Serve(c *Ctx) error {
 		c.SetHeader("etag", as.EtagCompressed)
 		c.SetHeader("content-encoding", "gzip")
 		c.SetHeader("vary", "accept-encoding")
-		http.ServeContent(c.W, c.R, "", as.ModTime, as.Content)
+		http.ServeContent(c.W, c.R, "", as.ModTime, as.ContentCompressed)
 	} else {
 		c.SetHeader("etag", as.Etag)
-		http.ServeContent(c.W, c.R, "", as.ModTime, as.ContentCompressed)
+		http.ServeContent(c.W, c.R, "", as.ModTime, as.Content)
 	}
 
 	c.Written = true
