@@ -662,9 +662,6 @@ func (c *Ctx) WriteFile(filename string) error {
 		}
 
 		filename += "index.html"
-		if c.instance.Config.DevMode {
-			fmt.Println("attempting to serve index.html...")
-		}
 	}
 
 	var (
