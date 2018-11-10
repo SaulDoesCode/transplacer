@@ -633,13 +633,6 @@ func (c *Ctx) WriteFile(filename string) error {
 		filename += "index.html"
 	}
 
-	if c.instance.Config.DevMode {
-		fmt.Println("\n\tWriteFile: ", filename, "\n\t")
-		if strings.Contains(filename, "./assets") {
-			panic("why does this happen?")
-		}
-	}
-
 	if c.instance.AssetCache != nil {
 		asset, ok := c.instance.AssetCache.Get(filename)
 		if ok {
