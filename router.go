@@ -378,7 +378,8 @@ func (r *Router) Route(c *Ctx) Handler {
 
 // hasLastSlash reports whether the s has the last '/'.
 func hasLastSlash(s string) bool {
-	return len(s) > 0 && s[len(s)-1] == '/'
+	length := len(s)
+	return length > 0 && s[length-1] == '/'
 }
 
 // pathWithoutParamNames returns a path from the p without the param names.
