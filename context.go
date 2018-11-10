@@ -616,48 +616,59 @@ func (c *Ctx) WriteXML(v interface{}) error {
 // WriteHTML responds to the client with the "text/html" content h.
 func (c *Ctx) WriteHTML(h string) error {
 	if c.instance != nil && c.instance.Config.AutoPush && c.R.ProtoMajor == 2 {
-		tree, err := html.Parse(strings.NewReader(h))
-		if err != nil {
-			return err
-		}
-
-		var f func(*html.Node)
-		f = func(n *html.Node) {
-			if n.Type == html.ElementNode {
-				target := ""
-				switch n.Data {
-				case "link":
-					for _, a := range n.Attr {
-						if a.Key == "href" {
-							target = a.Val
-							break
-						}
-					}
-				case "img", "script":
-					for _, a := range n.Attr {
-						if a.Key == "src" {
-							target = a.Val
-							break
-						}
-					}
-				}
-
-				if path.IsAbs(target) {
-					c.Push(target, nil)
-				}
-			}
-
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				f(c)
+		list, err := queryPushables(h)
+		if err == nil {
+			for _, target := range list {
+				c.Push(target, nil)
 			}
 		}
-
-		f(tree)
 	}
 
 	c.SetHeader("Content-Type", "text/html; charset=utf-8")
 
 	return c.WriteBlob([]byte(h))
+}
+
+func queryPushables(h string) ([]string, error) {
+	list := []string{}
+	tree, err := html.Parse(strings.NewReader(h))
+	if err != nil {
+		return list, err
+	}
+
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			target := ""
+			switch n.Data {
+			case "link":
+				for _, a := range n.Attr {
+					if a.Key == "href" {
+						target = a.Val
+						break
+					}
+				}
+			case "img", "script":
+				for _, a := range n.Attr {
+					if a.Key == "src" {
+						target = a.Val
+						break
+					}
+				}
+			}
+
+			if path.IsAbs(target) {
+				list = append(list, target)
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(tree)
+	return list, err
 }
 
 // WriteFile responds to the client with a file content with the filename.
@@ -845,7 +856,7 @@ func (c *Ctx) Push(target string, headers http.Header) error {
 			Header: make(http.Header, l),
 		}
 
-		pos.Header.Set("Cache-Control", "private, must-revalidate")
+		pos.Header.Set("cache-control", "private, must-revalidate")
 
 		for name, values := range headers {
 			pos.Header[textproto.CanonicalMIMEHeaderKey(name)] = values
