@@ -635,6 +635,9 @@ func (c *Ctx) WriteFile(filename string) error {
 
 	if c.instance.Config.DevMode {
 		fmt.Println("\n\tWriteFile: ", filename, "\n\t")
+		if strings.Contains(filename, "./assets") {
+			panic("why does this happen?")
+		}
 	}
 
 	if c.instance.AssetCache != nil {
