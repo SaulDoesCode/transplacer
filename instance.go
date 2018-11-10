@@ -269,7 +269,7 @@ func (in *Instance) Run() error {
 			cf.Assets,
 			time.Minute*30,
 			time.Second*30,
-			cf.DoNotWatchAssets,
+			!cf.DoNotWatchAssets,
 		)
 		if err != nil {
 			fmt.Println("asset cache failure: ", err)
