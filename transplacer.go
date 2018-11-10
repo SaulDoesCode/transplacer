@@ -170,7 +170,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 
 	asset := &Asset{
 		ContentType:  ContentType,
-		Content:      content,
+		Content:      bytes.NewReader(content),
 		Compressed:   Compressed,
 		CacheControl: a.CacheControl,
 		ModTime:      fs.ModTime(),
@@ -182,10 +182,10 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		compressedReader := bytes.NewReader(compressed)
 		var et []byte
 		h := sha256.New()
-		_, err = io.Copy(h, bytes.NewReader(compressed))
+		_, err = io.Copy(h, compressedReader)
 		if err != nil {
 			return nil, err
 		}
@@ -193,8 +193,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 			et = h.Sum(nil)
 		}
 		asset.EtagCompressed = fmt.Sprintf(`"%x"`, et)
-
-		asset.ContentCompressed = compressed
+		asset.ContentCompressed = compressedReader
 	}
 
 	var et []byte
@@ -211,7 +210,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	if err == nil {
 		asset.Loaded = time.Now()
 		if ext == ".html" {
-			list, err := queryPushables(string(asset.Content))
+			list, err := queryPushables(string(content))
 			if err == nil {
 				asset.PushList = list
 			}
@@ -260,8 +259,8 @@ type Asset struct {
 
 	ModTime time.Time
 
-	Content           []byte
-	ContentCompressed []byte
+	Content           *bytes.Reader
+	ContentCompressed *bytes.Reader
 
 	CacheControl string
 
@@ -291,21 +290,18 @@ func (as *Asset) Serve(c *Ctx) error {
 		}
 	}
 
-	var n int
 	var err error
 	if as.Compressed && strings.Contains(c.Header("accept-encoding"), "gzip") {
 		c.SetHeader("etag", as.EtagCompressed)
 		c.SetHeader("content-encoding", "gzip")
 		c.SetHeader("vary", "accept-encoding")
-		n, err = c.Write(as.ContentCompressed)
+		err = c.WriteContent(as.ContentCompressed)
 	} else {
 		c.SetHeader("etag", as.Etag)
-		n, err = c.Write(as.Content)
+		err = c.WriteContent(as.Content)
 	}
 
 	if err == nil {
-		c.ContentLength += int64(n)
-		c.Written = true
 		c.SetHeader("cache-control", as.CacheControl)
 		if len(as.PushList) > 0 {
 			pushWithHeaders(c, as.PushList)
