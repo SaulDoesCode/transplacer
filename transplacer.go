@@ -313,7 +313,7 @@ func (as *Asset) Serve(c *Ctx) error {
 			pushWithHeaders(c, as.PushList)
 		}
 
-		if c.ContentLength >= 0 &&
+		if c.ContentLength > 0 &&
 			c.GetHeader("content-length") == "" &&
 			c.GetHeader("transfer-encoding") == "" &&
 			c.Status >= 200 && c.Status != 204 &&

@@ -885,18 +885,8 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 
 // Write implements the `io.Writer`.
 func (c *Ctx) Write(b []byte) (int, error) {
-	if !c.Written {
-		c.ContentLength = -1
-		if err := c.WriteContent(nil); err != nil {
-			return 0, err
-		}
-
-		c.ContentLength = 0
-	}
-
 	n, err := c.W.Write(b)
 	c.ContentLength += int64(n)
-
 	return n, err
 }
 
