@@ -16,6 +16,7 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	defer cache.Close()
 
 	e := echo.New()
 
