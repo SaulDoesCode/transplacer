@@ -86,6 +86,10 @@ func Make(a *AssetCache) (*AssetCache, error) {
 		}
 	}
 
+	if a.Interval == 0 {
+		a.Interval = time.Second * 30
+	}
+
 	a.SetExpiryCheckInterval(a.Interval)
 
 	if a.Watch {
