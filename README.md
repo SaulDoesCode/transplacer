@@ -1,4 +1,4 @@
-# transplacer: reads files, suspending them in memory for performant serving/access
+# it reads files & suspends them in memory for performant serving/access
 
 [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](http://godoc.org/github.com/SaulDoesCode/transplacer)
 
