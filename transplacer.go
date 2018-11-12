@@ -1,14 +1,16 @@
-package mak
+package transplacer
 
 import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/textproto"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/cornelk/hashmap"
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/net/html"
 )
 
 var (
@@ -29,7 +32,11 @@ type HashMap = hashmap.HashMap
 
 // AssetCache is a store for assets
 type AssetCache struct {
-	Dir   string
+	Dir string
+
+	Index   string
+	NoIndex bool
+
 	Cache *HashMap
 
 	Expire   time.Duration
@@ -39,44 +46,53 @@ type AssetCache struct {
 
 	Ticker *time.Ticker
 
-	Instance *Instance
+	DevMode bool
 
 	Watch   bool
 	Watcher *fsnotify.Watcher
+
+	NotFoundHandler func(http.ResponseWriter, *http.Request)
+	NotFoundError   error
 }
 
-// MakeAssetCache prepares a new *AssetCache for use
-func MakeAssetCache(dir string, expire time.Duration, interval time.Duration, watch bool) (*AssetCache, error) {
-	dir, err := filepath.Abs(dir)
+// Make prepares a new *AssetCache for use
+func Make(a *AssetCache) (*AssetCache, error) {
+	dir, err := filepath.Abs(a.Dir)
 	if err != nil {
 		return nil, err
 	}
-	a := &AssetCache{
-		Dir:          dir,
-		Cache:        &HashMap{},
-		Expire:       expire,
-		CacheControl: "private, must-revalidate",
-		Watch:        watch,
+	a.Dir = dir
+
+	if a.Index == "" {
+		a.Index = "index.html"
 	}
 
-	a.SetExpiryCheckInterval(interval)
+	if a.Cache == nil {
+		a.Cache = &HashMap{}
+	}
 
-	go func() {
-		for now := range a.Ticker.C {
-			for kv := range a.Cache.Iter() {
-				asset := kv.Value.(*Asset)
-				if asset.Loaded.Add(a.Expire).After(now) {
-					a.Cache.Del(kv.Key)
-				}
-			}
+	if a.CacheControl == "" {
+		a.CacheControl = "private, must-revalidate"
+	}
+
+	if a.NotFoundError == nil {
+		a.NotFoundError = ErrAssetNotFound
+	}
+
+	if a.NotFoundHandler == nil {
+		a.NotFoundHandler = func(res http.ResponseWriter, req *http.Request) {
+			res.WriteHeader(404)
+			res.Write([]byte(a.NotFoundError.Error()))
 		}
-	}()
+	}
+
+	a.SetExpiryCheckInterval(a.Interval)
 
 	if a.Watch {
 		a.Watcher, err = fsnotify.NewWatcher()
 		if err != nil {
 			panic(fmt.Errorf(
-				"air: failed to build coffer watcher: %v",
+				"AssetCache: failed to build file watcher: %v",
 				err,
 			))
 		}
@@ -84,7 +100,7 @@ func MakeAssetCache(dir string, expire time.Duration, interval time.Duration, wa
 			for {
 				select {
 				case e := <-a.Watcher.Events:
-					if a.Instance.Config.DevMode {
+					if a.DevMode {
 						fmt.Printf(
 							"\nAssetCache watcher event:\n\tfile: %s \n\t event %s\n",
 							e.Name,
@@ -95,7 +111,7 @@ func MakeAssetCache(dir string, expire time.Duration, interval time.Duration, wa
 					a.Del(e.Name)
 					a.Gen(e.Name)
 				case err := <-a.Watcher.Errors:
-					fmt.Println("AssetCache watcher error: ", err)
+					fmt.Println("AssetCache file watcher error: ", err)
 				}
 			}
 		}()
@@ -111,22 +127,22 @@ func (a *AssetCache) SetExpiryCheckInterval(interval time.Duration) {
 	}
 	a.Interval = interval
 	a.Ticker = time.NewTicker(interval)
+	go func() {
+		for now := range a.Ticker.C {
+			for kv := range a.Cache.Iter() {
+				asset := kv.Value.(*Asset)
+				if asset.Loaded.Add(a.Expire).After(now) {
+					a.Del(kv.Key.(string))
+				}
+			}
+		}
+	}()
 }
 
-// Handler serves the assets
-func (a *AssetCache) Handler(c *Ctx) error {
-	name := path.Clean(a.Dir + c.R.URL.Path)
-
-	asset, ok := a.Get(name)
-	if ok {
-		return asset.Serve(c)
-	}
-
-	err := ErrNotFound.Envoy(c)
-	if c.instance.ErrorHandler != nil {
-		return c.instance.ErrorHandler(c, err)
-	}
-	return err
+// StopExpiryCheckInterval stops asset expiration checks
+func (a AssetCache) StopExpiryCheckInterval() {
+	a.Ticker.Stop()
+	a.Ticker = nil
 }
 
 // Close stops and clears the AssetCache
@@ -166,7 +182,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 
 	ContentType := mime.TypeByExtension(ext)
 
-	Compressed := stringsContainsCI(Compressable, ext)
+	Compressed := StringsContainCI(Compressable, ext)
 
 	asset := &Asset{
 		ContentType:  ContentType,
@@ -175,6 +191,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		CacheControl: a.CacheControl,
 		ModTime:      fs.ModTime(),
 		Ext:          ext,
+		Name:         fs.Name(),
 	}
 
 	if Compressed {
@@ -232,7 +249,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 	raw, ok := a.Cache.GetStringKey(name)
 	if !ok {
 		asset, err := a.Gen(name)
-		if err != nil && a.Instance.Config.DevMode {
+		if err != nil && a.DevMode {
 			fmt.Println("AssetCache.Get err: ", err, "name: ", name)
 		}
 		return asset, err == nil
@@ -249,9 +266,78 @@ func (a *AssetCache) Del(name string) {
 	}
 }
 
+// ErrAssetNotFound is for when an asset cannot be located/created
+var ErrAssetNotFound = errors.New(`no asset/file found, cannot serve`)
+
+// ServeFileDirect takes a key/filename directly and serves it if it exists and returns an ErrAssetNotFound if it doesn't
+func (a *AssetCache) ServeFileDirect(res http.ResponseWriter, req *http.Request, file string) error {
+	asset, ok := a.Get(file)
+	if !ok {
+		return ErrAssetNotFound
+	}
+	asset.Serve(res, req)
+	return nil
+}
+
+// ServeFile parses a key/filename and serves it if it exists and returns an ErrAssetNotFound if it doesn't
+func (a *AssetCache) ServeFile(res http.ResponseWriter, req *http.Request, file string) error {
+	return a.ServeFileDirect(res, req, prepPath(a.Dir, file))
+}
+
+// Middleware is a generic go handler that sets up AssetCache like any other
+// static file serving solution on your server
+func (a *AssetCache) Middleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if req.Method[0] != 'G' {
+			h(res, req)
+			return
+		}
+
+		var err error
+		if req.RequestURI == "/" && !a.NoIndex {
+			err = a.ServeFile(res, req, a.Index)
+		} else {
+			err = a.ServeFile(res, req, req.RequestURI)
+		}
+
+		if err != nil && a.NotFoundHandler != nil {
+			a.NotFoundHandler(res, req)
+		}
+	}
+}
+
+// ServeHTTP implements the http.Handler interface
+func (a *AssetCache) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	if req.Method[0] != 'G' {
+		return
+	}
+
+	var err error
+	if req.RequestURI == "/" && !a.NoIndex {
+		err = a.ServeFile(res, req, a.Index)
+	} else {
+		err = a.ServeFile(res, req, req.RequestURI)
+	}
+
+	if err != nil && a.NotFoundHandler != nil {
+		a.NotFoundHandler(res, req)
+	}
+}
+
+// Serve is the same as ServeHTTP but it returns the error instead of
+// calling .NotFoundHandler, this is useful for echo/air middleware
+func (a *AssetCache) Serve(res http.ResponseWriter, req *http.Request) error {
+	if req.RequestURI == "/" && !a.NoIndex {
+		return a.ServeFile(res, req, a.Index)
+	}
+	return a.ServeFile(res, req, req.RequestURI)
+}
+
 // Asset is an http servable resource
 type Asset struct {
 	Ext string
+
+	Name string
 
 	ContentType string
 
@@ -272,46 +358,28 @@ type Asset struct {
 	PushList []string
 }
 
-// Serve an asset through c *Ctx
-func (as *Asset) Serve(c *Ctx) error {
-	c.SetContentType(as.ContentType)
-	if c.GetHeader("last-modified") == "" {
-		c.SetHeader("last-modified", as.ModTime.UTC().Format(http.TimeFormat))
+// Serve serves the asset via the ussual http ResponseWriter and *Request
+func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", as.ContentType)
+
+	if req.TLS != nil && res.Header().Get("Strict-Transport-Security") == "" {
+		res.Header().Set("Strict-Transport-Security", "max-age=31536000")
 	}
 
-	match := c.Header("If-None-Match")
-	if match == "" {
-		match = c.Header("If-Match")
-	}
-	if match != "" {
-		if strings.Contains(match, as.Etag) ||
-			strings.Contains(match, as.EtagCompressed) {
-			return c.WriteContent(nil)
-		}
-	}
-
-	if c.R.TLS != nil && c.GetHeader("strict-transport-security") == "" {
-		c.SetHeader("strict-transport-security", "max-age=31536000")
-	}
-
-	c.SetHeader("cache-control", as.CacheControl)
+	res.Header().Set("Cache-Control", as.CacheControl)
 	if len(as.PushList) > 0 {
-		pushWithHeaders(c, as.PushList)
+		pushWithHeaders(res, req, as.PushList)
 	}
 
-	if as.Compressed && strings.Contains(c.Header("accept-encoding"), "gzip") {
-		c.SetHeader("etag", as.EtagCompressed)
-		c.SetHeader("content-encoding", "gzip")
-		c.SetHeader("vary", "accept-encoding")
-		http.ServeContent(c.W, c.R, "", as.ModTime, as.ContentCompressed)
+	if as.Compressed && strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		res.Header().Set("Etag", as.EtagCompressed)
+		res.Header().Set("Content-Encoding", "gzip")
+		res.Header().Set("Vary", "accept-encoding")
+		http.ServeContent(res, req, as.Name, as.ModTime, as.ContentCompressed)
 	} else {
-		c.SetHeader("etag", as.Etag)
-		http.ServeContent(c.W, c.R, "", as.ModTime, as.Content)
+		res.Header().Set("Etag", as.Etag)
+		http.ServeContent(res, req, as.Name, as.ModTime, as.Content)
 	}
-
-	c.Written = true
-
-	return nil
 }
 
 func gzipBytes(content []byte, level int) ([]byte, error) {
@@ -346,4 +414,113 @@ func prepPath(host, file string) string {
 		return filepath.Join(file, "index.html")
 	}
 	return file
+}
+
+// HTTP2Push initiates an HTTP/2 server push. This constructs a synthetic request
+// using the target and headers, serializes that request into a PUSH_PROMISE
+// frame, then dispatches that request using the server's request handlec. The
+// target must either be an absolute path (like "/path") or an absolute URL
+// that contains a valid host and the same scheme as the parent request. If the
+// target is a path, it will inherit the scheme and host of the parent request.
+// The headers specifies additional promised request headers. The headers
+// cannot include HTTP/2 pseudo headers like ":path" and ":scheme", which
+// will be added automatically.
+func HTTP2Push(W http.ResponseWriter, target string, headers http.Header) error {
+	p, ok := W.(http.Pusher)
+	if !ok {
+		return nil
+	}
+
+	var pos *http.PushOptions
+	if l := len(headers); l > 0 {
+		pos = &http.PushOptions{
+			Header: make(http.Header, l),
+		}
+
+		pos.Header.Set("cache-control", "private, must-revalidate")
+
+		for name, values := range headers {
+			pos.Header[textproto.CanonicalMIMEHeaderKey(name)] = values
+		}
+	}
+
+	return p.Push(target, pos)
+}
+
+func cloneHeader(h http.Header) http.Header {
+	h2 := make(http.Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
+	}
+	return h2
+}
+
+func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) {
+	for _, target := range list {
+		reqHeaders := cloneHeader(R.Header)
+		reqHeaders.Del("etag")
+		for name := range reqHeaders {
+			if strings.Contains(name, "if") ||
+				strings.Contains(name, "modified") {
+				reqHeaders.Del(name)
+			}
+		}
+		HTTP2Push(W, target, reqHeaders)
+	}
+}
+
+func queryPushables(h string) ([]string, error) {
+	list := []string{}
+	tree, err := html.Parse(strings.NewReader(h))
+	if err != nil {
+		return list, err
+	}
+
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			target := ""
+			switch n.Data {
+			case "link":
+				for _, a := range n.Attr {
+					if a.Key == "href" {
+						target = a.Val
+						break
+					}
+				}
+			case "img", "script":
+				for _, a := range n.Attr {
+					if a.Key == "src" {
+						target = a.Val
+						break
+					}
+				}
+			}
+
+			if path.IsAbs(target) {
+				list = append(list, target)
+			}
+		}
+
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(tree)
+	return list, err
+}
+
+// StringsContainCI reports whether the lists contains a match regardless of its case.
+func StringsContainCI(list []string, match string) bool {
+	match = strings.ToLower(match)
+	for _, item := range list {
+		if strings.ToLower(item) == match {
+			return true
+		}
+	}
+
+	return false
 }
