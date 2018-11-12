@@ -4,8 +4,9 @@
 
 * auto http2 push, when available
 * auto watching and updating
+* gzips and sets etags
 * works concurrently, no deadlocks
-* it's a bit of rough magic and ducktape, but, it works
+* it's a bit of rough magic & ducktape, but, it works
 
 
 ## Diy AssetCache for super fast static asset serving straight from the memory
