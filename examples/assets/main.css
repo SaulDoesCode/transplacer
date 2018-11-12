@@ -1,0 +1,33 @@
+*, * *, * * * {
+  position: relative;
+  box-sizing: border-box;
+}
+
+body, html {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  flex-flow: column wrap;
+
+  font-family: 'Courier New', Courier, monospace;
+  color: hsl(0, 0%, 30%);
+  text-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+body > * {
+  width: 80vw;
+  max-width: 700px;
+}
+
+h1 {
+  text-align: center;
+  color: hsl(347, 65%, 70%);
+}
+
