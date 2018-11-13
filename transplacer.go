@@ -194,6 +194,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		Content:      bytes.NewReader(content),
 		Compressed:   Compressed,
 		CacheControl: a.CacheControl,
+		Cache:        a,
 		ModTime:      fs.ModTime(),
 		Ext:          ext,
 		Name:         fs.Name(),
@@ -234,7 +235,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	}
 	asset.Loaded = time.Now()
 	if ext == ".html" {
-		list, err := queryPushables(string(content))
+		list, err := queryPushables(asset.Content)
 		if err == nil {
 			asset.PushList = list
 		}
@@ -363,6 +364,8 @@ type Asset struct {
 
 	CacheControl string
 
+	Cache *AssetCache
+
 	Etag           string
 	EtagCompressed string
 
@@ -380,8 +383,11 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 		if res.Header().Get("Strict-Transport-Security") == "" {
 			res.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
-		if req.ProtoMajor >= 2 && len(as.PushList) > 0 {
+		if req.ProtoMajor > 1 && len(as.PushList) > 0 {
 			pushWithHeaders(res, req, as.PushList)
+			if as.Cache != nil && as.Cache.DevMode {
+				fmt.Println("http2 push")
+			}
 		}
 	}
 
@@ -421,12 +427,14 @@ func gzipBytes(content []byte, level int) ([]byte, error) {
 func PrepPath(host, file string) string {
 	file = path.Clean(file)
 
-	if !strings.Contains(file, host) {
+	if !strings.HasPrefix(file, host) {
 		file = filepath.Join(host, file)
 	}
 
 	if file[len(file)-1] == '/' {
 		return filepath.Join(file, "index.html")
+	} else if filepath.Ext(file) == "" {
+		return file + ".html"
 	}
 	return file
 }
@@ -473,22 +481,22 @@ func cloneHeader(h http.Header) http.Header {
 }
 
 func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) {
-	for _, target := range list {
-		reqHeaders := cloneHeader(R.Header)
-		reqHeaders.Del("etag")
-		for name := range reqHeaders {
-			if strings.Contains(name, "if") ||
-				strings.Contains(name, "modified") {
-				reqHeaders.Del(name)
-			}
+	reqHeaders := cloneHeader(R.Header)
+	reqHeaders.Del("etag")
+	for name := range reqHeaders {
+		if strings.Contains(name, "if") ||
+			strings.Contains(name, "modified") {
+			reqHeaders.Del(name)
 		}
+	}
+	for _, target := range list {
 		HTTP2Push(W, target, reqHeaders)
 	}
 }
 
-func queryPushables(h string) ([]string, error) {
+func queryPushables(content io.Reader) ([]string, error) {
 	list := []string{}
-	tree, err := html.Parse(strings.NewReader(h))
+	tree, err := html.Parse(content)
 	if err != nil {
 		return list, err
 	}
