@@ -375,8 +375,10 @@ type Asset struct {
 func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", as.ContentType)
 
-	if req.TLS != nil && res.Header().Get("Strict-Transport-Security") == "" {
-		res.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	if req.TLS != nil {
+		if res.Header().Get("Strict-Transport-Security") == "" {
+			res.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		if req.ProtoMajor >= 2 && len(as.PushList) > 0 {
 			pushWithHeaders(res, req, as.PushList)
 		}
