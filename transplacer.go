@@ -275,7 +275,7 @@ func (a *AssetCache) Del(name string) {
 func (a *AssetCache) Update(name string) bool {
 	name = prepPath(a.Dir, name)
 	a.Cache.Del(name)
-	_, ok := a.Cache.Get(name)
+	_, ok := a.Get(name)
 	return ok
 }
 
