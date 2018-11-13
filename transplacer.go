@@ -286,7 +286,7 @@ var ErrAssetNotFound = errors.New(`no asset/file found, cannot serve`)
 func (a *AssetCache) ServeFileDirect(res http.ResponseWriter, req *http.Request, file string) error {
 	asset, ok := a.Get(file)
 	if !ok {
-		return ErrAssetNotFound
+		return a.NotFoundError
 	}
 	asset.Serve(res, req)
 	return nil
