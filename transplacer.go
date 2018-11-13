@@ -377,12 +377,12 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 
 	if req.TLS != nil && res.Header().Get("Strict-Transport-Security") == "" {
 		res.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		if req.ProtoMajor >= 2 && len(as.PushList) > 0 {
+			pushWithHeaders(res, req, as.PushList)
+		}
 	}
 
 	res.Header().Set("Cache-Control", as.CacheControl)
-	if len(as.PushList) > 0 {
-		pushWithHeaders(res, req, as.PushList)
-	}
 
 	if as.Compressed && strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 		res.Header().Set("Etag", as.EtagCompressed)
