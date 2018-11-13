@@ -113,7 +113,10 @@ func Make(a *AssetCache) (*AssetCache, error) {
 					}
 
 					a.Del(e.Name)
-					a.Gen(e.Name)
+					_, ok := a.Get(e.Name)
+					if !ok && a.DevMode {
+						fmt.Println("AssetCache error: changed file could not be updated sucessfully")
+					}
 				case err := <-a.Watcher.Errors:
 					fmt.Println("AssetCache file watcher error: ", err)
 				}
@@ -168,7 +171,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	}
 
 	if fs.IsDir() {
-		return a.Gen(name + "/index.html")
+		return a.Gen(filepath.Join(name, "index.html"))
 	}
 
 	f, err := os.Open(name)
@@ -228,21 +231,21 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	}
 	asset.Etag = fmt.Sprintf(`"%x"`, et)
 
-	if err == nil {
-		asset.Loaded = time.Now()
-		if ext == ".html" {
-			list, err := queryPushables(string(content))
-			if err == nil {
-				asset.PushList = list
-			}
-		}
-
-		a.Cache.Set(name, asset)
-		if a.Watch {
-			a.Watcher.Add(name)
+	if err != nil {
+		return nil, err
+	}
+	asset.Loaded = time.Now()
+	if ext == ".html" {
+		list, err := queryPushables(string(content))
+		if err == nil {
+			asset.PushList = list
 		}
 	}
 
+	if a.Watch {
+		a.Watcher.Add(name)
+	}
+	a.Cache.Set(name, asset)
 	return asset, err
 }
 
@@ -256,7 +259,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 		if err != nil && a.DevMode {
 			fmt.Println("AssetCache.Get err: ", err, "name: ", name)
 		}
-		return asset, err == nil
+		return asset, err == nil && asset != nil
 	}
 	return raw.(*Asset), ok
 }
@@ -265,7 +268,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 func (a *AssetCache) Del(name string) {
 	name = prepPath(a.Dir, name)
 	a.Cache.Del(name)
-	if a.Watch {
+	if a.Watch && a.Watcher != nil {
 		a.Watcher.Remove(name)
 	}
 }
