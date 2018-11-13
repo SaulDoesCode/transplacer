@@ -374,6 +374,7 @@ type Asset struct {
 // Serve serves the asset via the ussual http ResponseWriter and *Request
 func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", as.ContentType)
+	res.Header().Set("Cache-Control", as.CacheControl)
 
 	if req.TLS != nil {
 		if res.Header().Get("Strict-Transport-Security") == "" {
@@ -383,8 +384,6 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 			pushWithHeaders(res, req, as.PushList)
 		}
 	}
-
-	res.Header().Set("Cache-Control", as.CacheControl)
 
 	if as.Compressed && strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 		res.Header().Set("Etag", as.EtagCompressed)
