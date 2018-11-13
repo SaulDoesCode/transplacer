@@ -64,7 +64,7 @@ func Make(a *AssetCache) (*AssetCache, error) {
 	a.Dir = dir
 
 	if a.Index == "" {
-		a.Index = "index.html"
+		a.Index = PrepPath(a.Dir, "index.html")
 	}
 
 	if a.Cache == nil {
@@ -308,7 +308,7 @@ func (a *AssetCache) Middleware(h http.HandlerFunc) http.HandlerFunc {
 
 		var err error
 		if req.RequestURI == "/" && !a.NoIndex {
-			err = a.ServeFile(res, req, a.Index)
+			err = a.ServeFileDirect(res, req, a.Index)
 		} else {
 			err = a.ServeFile(res, req, req.RequestURI)
 		}
@@ -327,7 +327,7 @@ func (a *AssetCache) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	var err error
 	if req.RequestURI == "/" && !a.NoIndex {
-		err = a.ServeFile(res, req, a.Index)
+		err = a.ServeFileDirect(res, req, a.Index)
 	} else {
 		err = a.ServeFile(res, req, req.RequestURI)
 	}
@@ -341,7 +341,7 @@ func (a *AssetCache) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 // calling .NotFoundHandler, this is useful for echo/air middleware
 func (a *AssetCache) Serve(res http.ResponseWriter, req *http.Request) error {
 	if req.RequestURI == "/" && !a.NoIndex {
-		return a.ServeFile(res, req, a.Index)
+		return a.ServeFileDirect(res, req, a.Index)
 	}
 	return a.ServeFile(res, req, req.RequestURI)
 }
