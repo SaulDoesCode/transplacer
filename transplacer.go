@@ -407,6 +407,7 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Etag", as.Etag)
 		http.ServeContent(res, req, as.Name, as.ModTime, as.Content)
 	}
+	as.Loaded = time.Now()
 }
 
 func gzipBytes(content []byte, level int) ([]byte, error) {
