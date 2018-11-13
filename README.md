@@ -14,31 +14,31 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"time"
+  "log"
+  "net/http"
+  "time"
 
-	tr "github.com/SaulDoesCode/transplacer"
+  tr "github.com/SaulDoesCode/transplacer"
 )
 
 func main() {
-	cache, err := tr.Make(&tr.AssetCache{
-		Dir:     "./assets",
-		Watch:   true,
-		Expire:  time.Minute * 30,
-		DevMode: true, // extra logs
-	})
-	if err != nil {
-		panic(err.Error())
+  cache, err := tr.Make(&tr.AssetCache{
+    Dir:     "./assets",
+    Watch:   true,
+    Expire:  time.Minute * 30,
+    DevMode: true, // extra logs
+  })
+  if err != nil {
+    panic(err.Error())
   }
   defer cache.Close()
 
-	server := &http.Server{
-		Addr:    ":http",
-		Handler: cache,
-	}
+  server := &http.Server{
+    Addr:    ":http",
+    Handler: cache,
+  }
 
-	log.Fatal(server.ListenAndServe())
+  log.Fatal(server.ListenAndServe())
 }
 ```
 
@@ -47,37 +47,37 @@ With Echo
 package main
 
 import (
-	"time"
+  "time"
 
-	tr "github.com/SaulDoesCode/transplacer"
-	"github.com/labstack/echo"
+  tr "github.com/SaulDoesCode/transplacer"
+  "github.com/labstack/echo"
 )
 
 func main() {
-	cache, err := tr.Make(&tr.AssetCache{
-		Dir:    "./assets",
-		Watch:  true,
-		Expire: time.Minute * 30,
-	})
-	if err != nil {
-		panic(err.Error())
+  cache, err := tr.Make(&tr.AssetCache{
+    Dir:    "./assets",
+    Watch:  true,
+    Expire: time.Minute * 30,
+  })
+  if err != nil {
+    panic(err.Error())
   }
   defer cache.Close()
 
-	e := echo.New()
+  e := echo.New()
 
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			req := c.Request()
-			err := next(c)
-			if err == nil || req.Method[0] != 'G' {
-				return err
-			}
+  e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+    return func(c echo.Context) error {
+      req := c.Request()
+      err := next(c)
+      if err == nil || req.Method[0] != 'G' {
+        return err
+      }
 
-			return cache.Serve(c.Response().Writer, req)
-		}
-	})
+      return cache.Serve(c.Response().Writer, req)
+    }
+  })
 
-	e.Logger.Fatal(e.Start(":http"))
+  e.Logger.Fatal(e.Start(":http"))
 }
 ```
