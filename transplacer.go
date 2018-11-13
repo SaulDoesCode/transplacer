@@ -68,7 +68,7 @@ func Make(a *AssetCache) (*AssetCache, error) {
 	}
 
 	if a.Cache == nil {
-		a.Cache = &HashMap{}
+		a.Cache = hashmap.New(50)
 	}
 
 	if a.CacheControl == "" {
