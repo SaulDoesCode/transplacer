@@ -161,7 +161,7 @@ func (a *AssetCache) Close() error {
 
 // Gen generates a new Asset
 func (a *AssetCache) Gen(name string) (*Asset, error) {
-	name = prepPath(a.Dir, name)
+	name = PrepPath(a.Dir, name)
 
 	fs, err := os.Stat(name)
 	if err != nil {
@@ -249,7 +249,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 
 // Get fetches an asset
 func (a *AssetCache) Get(name string) (*Asset, bool) {
-	name = prepPath(a.Dir, name)
+	name = PrepPath(a.Dir, name)
 
 	raw, ok := a.Cache.GetStringKey(name)
 	if !ok {
@@ -264,7 +264,7 @@ func (a *AssetCache) Get(name string) (*Asset, bool) {
 
 // Del removes an asset, nb. not the file, the file is fine
 func (a *AssetCache) Del(name string) {
-	name = prepPath(a.Dir, name)
+	name = PrepPath(a.Dir, name)
 	a.Cache.Del(name)
 	if a.Watch && a.Watcher != nil {
 		a.Watcher.Remove(name)
@@ -273,7 +273,7 @@ func (a *AssetCache) Del(name string) {
 
 // Update first deletes an asset then gets it again, updating it thereby.
 func (a *AssetCache) Update(name string) bool {
-	name = prepPath(a.Dir, name)
+	name = PrepPath(a.Dir, name)
 	a.Cache.Del(name)
 	_, ok := a.Get(name)
 	return ok
@@ -294,7 +294,7 @@ func (a *AssetCache) ServeFileDirect(res http.ResponseWriter, req *http.Request,
 
 // ServeFile parses a key/filename and serves it if it exists and returns an ErrAssetNotFound if it doesn't
 func (a *AssetCache) ServeFile(res http.ResponseWriter, req *http.Request, file string) error {
-	return a.ServeFileDirect(res, req, prepPath(a.Dir, file))
+	return a.ServeFileDirect(res, req, PrepPath(a.Dir, file))
 }
 
 // Middleware is a generic go handler that sets up AssetCache like any other
@@ -416,7 +416,8 @@ func gzipBytes(content []byte, level int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func prepPath(host, file string) string {
+// PrepPath joins a host path with a clean file path
+func PrepPath(host, file string) string {
 	file = path.Clean(file)
 
 	if !strings.Contains(file, host) {
