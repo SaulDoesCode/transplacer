@@ -137,7 +137,11 @@ func (a *AssetCache) SetExpiryCheckInterval(interval time.Duration) {
 			for kv := range a.Cache.Iter() {
 				asset := kv.Value.(*Asset)
 				if asset.Loaded.Add(a.Expire).After(now) {
-					a.Del(kv.Key.(string))
+					key := kv.Key.(string)
+					a.Del(key)
+					if a.DevMode {
+						fmt.Println("Asset Expired: ", key)
+					}
 				}
 			}
 		}
@@ -383,10 +387,10 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 		if res.Header().Get("Strict-Transport-Security") == "" {
 			res.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
-		if req.ProtoMajor > 1 && len(as.PushList) > 0 {
-			pushWithHeaders(res, req, as.PushList)
+		if len(as.PushList) > 0 {
+			errs := pushWithHeaders(res, req, as.PushList)
 			if as.Cache != nil && as.Cache.DevMode {
-				fmt.Println("http2 push")
+				fmt.Println("http2 push: ", errs)
 			}
 		}
 	}
@@ -480,7 +484,7 @@ func cloneHeader(h http.Header) http.Header {
 	return h2
 }
 
-func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) {
+func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) []error {
 	reqHeaders := cloneHeader(R.Header)
 	reqHeaders.Del("etag")
 	for name := range reqHeaders {
@@ -489,9 +493,14 @@ func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) {
 			reqHeaders.Del(name)
 		}
 	}
+	errs := []error{}
 	for _, target := range list {
-		HTTP2Push(W, target, reqHeaders)
+		err := HTTP2Push(W, target, reqHeaders)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errs
 }
 
 func queryPushables(content io.Reader) ([]string, error) {
