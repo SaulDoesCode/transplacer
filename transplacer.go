@@ -112,9 +112,7 @@ func Make(a *AssetCache) (*AssetCache, error) {
 						)
 					}
 
-					a.Del(e.Name)
-					_, ok := a.Get(e.Name)
-					if !ok && a.DevMode {
+					if !a.Update(e.Name) && a.DevMode {
 						fmt.Println("AssetCache error: changed file could not be updated sucessfully")
 					}
 				case err := <-a.Watcher.Errors:
@@ -271,6 +269,14 @@ func (a *AssetCache) Del(name string) {
 	if a.Watch && a.Watcher != nil {
 		a.Watcher.Remove(name)
 	}
+}
+
+// Update first deletes an asset then gets it again, updating it thereby.
+func (a *AssetCache) Update(name string) bool {
+	name = prepPath(a.Dir, name)
+	a.Cache.Del(name)
+	_, ok := a.Cache.Get(name)
+	return ok
 }
 
 // ErrAssetNotFound is for when an asset cannot be located/created
