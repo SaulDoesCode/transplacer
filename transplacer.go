@@ -391,9 +391,6 @@ func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.TLS != nil {
-		if res.Header().Get("Strict-Transport-Security") == "" {
-			res.Header().Set("Strict-Transport-Security", "max-age=31536000")
-		}
 		if len(as.PushList) > 0 {
 			pushWithHeaders(res, req, as.PushList)
 			if as.Cache != nil && as.Cache.DevMode {
