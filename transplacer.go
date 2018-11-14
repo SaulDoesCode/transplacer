@@ -384,7 +384,9 @@ type Asset struct {
 // Serve serves the asset via the ussual http ResponseWriter and *Request
 func (as *Asset) Serve(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", as.ContentType)
-	res.Header().Set("Cache-Control", as.CacheControl)
+	if res.Header().Get("Cache-Control") == "" {
+		res.Header().Set("Cache-Control", as.CacheControl)
+	}
 
 	if req.TLS != nil {
 		if res.Header().Get("Strict-Transport-Security") == "" {
