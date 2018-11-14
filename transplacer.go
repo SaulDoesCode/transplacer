@@ -25,6 +25,8 @@ import (
 var (
 	// Compressable - list of compressable file types, append to it if needed
 	Compressable = []string{"", ".txt", ".htm", ".html", ".css", ".toml", ".php", ".js", ".json", ".md", ".mdown", ".xml", ".svg", ".go", ".cgi", ".py", ".pl", ".aspx", ".asp"}
+	// AvoidPushing - list of file extentions to skip over when building an http2 push list
+	AvoidPushing = []string{"", ".png", ".webp", ".txt"}
 )
 
 // HashMap is an alias of cornelk/hashmap
@@ -521,7 +523,14 @@ func queryPushables(content io.Reader) ([]string, error) {
 				for _, a := range n.Attr {
 					if a.Key == "href" {
 						target = a.Val
-					} else if a.Key == "preload" || strings.Contains(a.Key, "icon") {
+						ext := filepath.Ext(a.Val)
+						for _, nopush := range AvoidPushing {
+							if nopush == ext {
+								avoid = true
+								break
+							}
+						}
+					} else if a.Key == "preload" || a.Key == "icon" {
 						avoid = true
 					}
 				}
