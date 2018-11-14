@@ -515,15 +515,15 @@ func queryPushables(content io.Reader) ([]string, error) {
 			target := ""
 			switch n.Data {
 			case "link":
-				preload := false
+				avoid := false
 				for _, a := range n.Attr {
 					if a.Key == "href" {
 						target = a.Val
-					} else if a.Key == "preload" {
-						preload = true
+					} else if a.Key == "preload" || strings.Contains(a.Key, "icon") {
+						avoid = true
 					}
 				}
-				if preload {
+				if avoid {
 					target = ""
 				}
 			case "img", "script":
