@@ -504,46 +504,57 @@ func pushWithHeaders(W http.ResponseWriter, R *http.Request, list []string) {
 }
 
 func queryPushables(content io.Reader) ([]string, error) {
-	list := []string{}
 	tree, err := html.Parse(content)
 	if err != nil {
-		return list, err
+		return nil, err
 	}
 
+	list := []string{}
 	var f func(*html.Node)
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode {
-			target := ""
+			avoid, target := false, ""
 			switch n.Data {
 			case "link":
-				avoid := false
+				relChecked := false
+			LinkLoop:
 				for _, a := range n.Attr {
-					if a.Key == "href" {
-						target = a.Val
-						ext := filepath.Ext(a.Val)
-						for _, nopush := range AvoidPushing {
-							if nopush == ext {
-								avoid = true
-								break
-							}
+					switch strings.ToLower(a.Key) {
+					case "rel":
+						if v := strings.ToLower(
+							a.Val,
+						); v == "preload" ||
+							v == "icon" {
+							avoid = true
+							break LinkLoop
 						}
-					} else if a.Key == "preload" || a.Key == "icon" {
-						avoid = true
+
+						relChecked = true
+					case "href":
+						target = a.Val
+						if relChecked {
+							break LinkLoop
+						}
 					}
 				}
-				if avoid {
-					target = ""
-				}
 			case "img", "script":
+			ImgScriptLoop:
 				for _, a := range n.Attr {
-					if a.Key == "src" {
+					switch strings.ToLower(a.Key) {
+					case "src":
 						target = a.Val
-						break
+						break ImgScriptLoop
 					}
 				}
 			}
 
-			if path.IsAbs(target) {
+			for _, nopush := range AvoidPushing {
+				if filepath.Ext(target) == nopush {
+					avoid = true
+					break
+				}
+			}
+			if !avoid && path.IsAbs(target) {
 				list = append(list, target)
 			}
 		}
@@ -554,6 +565,7 @@ func queryPushables(content io.Reader) ([]string, error) {
 	}
 
 	f(tree)
+
 	return list, err
 }
 
