@@ -317,10 +317,10 @@ func (a *AssetCache) Middleware(h http.HandlerFunc) http.HandlerFunc {
 		}
 
 		var err error
-		if req.RequestURI == "/" && !a.NoIndex {
+		if req.URL.Path == "/" && !a.NoIndex {
 			err = a.ServeFileDirect(res, req, a.Index)
 		} else {
-			err = a.ServeFile(res, req, req.RequestURI)
+			err = a.ServeFile(res, req, req.URL.Path)
 		}
 
 		if err != nil && a.NotFoundHandler != nil {
@@ -336,10 +336,10 @@ func (a *AssetCache) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	var err error
-	if req.RequestURI == "/" && !a.NoIndex {
+	if req.URL.Path == "/" && !a.NoIndex {
 		err = a.ServeFileDirect(res, req, a.Index)
 	} else {
-		err = a.ServeFile(res, req, req.RequestURI)
+		err = a.ServeFile(res, req, req.URL.Path)
 	}
 
 	if err != nil && a.NotFoundHandler != nil {
@@ -350,10 +350,10 @@ func (a *AssetCache) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 // Serve is the same as ServeHTTP but it returns the error instead of
 // calling .NotFoundHandler, this is useful for echo/air middleware
 func (a *AssetCache) Serve(res http.ResponseWriter, req *http.Request) error {
-	if req.RequestURI == "/" && !a.NoIndex {
+	if req.URL.Path == "/" && !a.NoIndex {
 		return a.ServeFileDirect(res, req, a.Index)
 	}
-	return a.ServeFile(res, req, req.RequestURI)
+	return a.ServeFile(res, req, req.URL.Path)
 }
 
 // Asset is an http servable resource
