@@ -3,7 +3,7 @@ package transplacer
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cespare/xxhash"
 	"github.com/cornelk/hashmap"
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/net/html"
@@ -213,7 +214,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		}
 		compressedReader := bytes.NewReader(compressed)
 		var et []byte
-		h := sha256.New()
+		h := xxhash.New()
 		_, err = io.Copy(h, compressedReader)
 		if err != nil {
 			return nil, err
@@ -221,12 +222,12 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 		if et == nil {
 			et = h.Sum(nil)
 		}
-		asset.EtagCompressed = fmt.Sprintf(`"%x"`, et)
+		asset.EtagCompressed = fmt.Sprintf(`"%x"`, base64.StdEncoding.EncodeToString(et))
 		asset.ContentCompressed = compressedReader
 	}
 
 	var et []byte
-	h := sha256.New()
+	h := xxhash.New()
 	_, err = io.Copy(h, f)
 	if err != nil {
 		return nil, err
@@ -234,7 +235,7 @@ func (a *AssetCache) Gen(name string) (*Asset, error) {
 	if et == nil {
 		et = h.Sum(nil)
 	}
-	asset.Etag = fmt.Sprintf(`"%x"`, et)
+	asset.Etag = fmt.Sprintf(`"%x"`, base64.StdEncoding.EncodeToString(et))
 
 	if err != nil {
 		return nil, err
